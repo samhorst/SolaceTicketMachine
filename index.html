@@ -242,7 +242,6 @@
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate / physician name", type: "text" },
           { key: "patient",  label: "Patient ID(s)", type: "text" },
-          { key: "visitId",  label: "Visit ID", type: "text", hint: "Pull from admin URL after \"visitid=\"" },
           { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
           { key: "browser",  label: "Browser", type: "text" },
           { key: "device",   label: "Advocate device", type: "text" },
@@ -265,7 +264,6 @@
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
           { key: "patient",  label: "Patient ID(s)", type: "text" },
-          { key: "visitId",  label: "Visit ID", type: "text", hint: "Pull from admin URL after \"visitid=\"" },
           { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
           { key: "browser",  label: "Browser", type: "text" },
           { key: "os",       label: "OS", type: "text" },
@@ -287,7 +285,6 @@
           { key: "ticket",    label: "Zendesk ticket #", type: "text" },
           { key: "advocate",  label: "Advocate name", type: "text" },
           { key: "patient",   label: "Patient ID(s)", type: "text" },
-          { key: "visitId",   label: "Visit ID", type: "text" },
           { key: "datetime",  label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
           { key: "what",      label: "What specifically froze or failed?", type: "textarea" },
           { key: "browser",   label: "Browser & OS", type: "text" },
@@ -312,7 +309,6 @@
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
           { key: "patient",  label: "Patient ID(s)", type: "text" },
-          { key: "visitId",  label: "Visit ID", type: "text" },
           { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
           { key: "patSees",  label: "What does the patient see when clicking the link?", type: "textarea" },
           { key: "errMsg",   label: "Exact error message text (if any)", type: "text" },
@@ -336,7 +332,6 @@
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
           { key: "patient",  label: "Patient ID(s)", type: "text" },
-          { key: "visitId",  label: "Visit ID", type: "text" },
           { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
           { key: "what",     label: "What did the patient see/hear?", type: "textarea" },
           { key: "patDevice",label: "Patient device type", type: "text" },
@@ -357,7 +352,6 @@
           { key: "ticket",    label: "Zendesk ticket #", type: "text" },
           { key: "advocate",  label: "Advocate name", type: "text" },
           { key: "patient",   label: "Patient ID(s)", type: "text" },
-          { key: "visitId",   label: "Visit ID", type: "text" },
           { key: "datetime",  label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
           { key: "patSees",   label: "What does the patient see/hear?", type: "textarea", hint: "Blank screen / spinner / error — get exact text" },
           { key: "patDevice", label: "Patient device type", type: "text" },
@@ -956,9 +950,15 @@
         if (Array.isArray(v)) {
           const touched = v.filter(item => item.touched && item.datetime);
           if (touched.length === 0) return "";
-          const hasVisitIds = touched.some(item => item.visitId !== undefined);
-          const label = hasVisitIds ? "Visit" : "Call";
-          if (touched.length === 1) return touched[0].datetime;
+          const hasVisitIds = touched.some(item => item.visitId);
+          const label = touched.some(item => item.visitId !== undefined) ? "Visit" : "Call";
+          if (touched.length === 1) {
+            const item = touched[0];
+            const extras = [];
+            if (item.visitId) extras.push(`Visit ID: ${item.visitId}`);
+            if (item.patient) extras.push(`Patient: ${item.patient}`);
+            return extras.length > 0 ? `${item.datetime}\n${extras.join("\n")}` : item.datetime;
+          }
           return touched.map((item, i) => {
             const extras = [];
             if (item.patient) extras.push(`Patient: ${item.patient}`);
