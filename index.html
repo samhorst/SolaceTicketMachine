@@ -117,9 +117,9 @@
         ],
         escalate: [
           { key: "ticket",     label: "Zendesk ticket #", type: "text" },
-          { key: "datetime",   label: "Call timestamp (with timezone)", type: "datetime" },
+          { key: "datetime",   label: "Call timestamp(s) (with timezone)", type: "datetime_multi" },
           { key: "advocate",   label: "Advocate name", type: "text" },
-          { key: "patient",    label: "Patient ID", type: "text" },
+          { key: "patient",    label: "Patient ID(s)", type: "text" },
           { key: "device",     label: "Device & OS", type: "text" },
           { key: "browser",    label: "Browser", type: "text" },
           { key: "twilioShot", label: "Twilio Network Test screenshot", type: "screenshot", hint: "networktest.twilio.com" },
@@ -141,7 +141,7 @@
         escalate: [
           { key: "ticket",     label: "Zendesk ticket #", type: "text" },
           { key: "advocate",   label: "Advocate name", type: "text" },
-          { key: "datetime",   label: "Timestamp of missed call (with timezone)", type: "datetime" },
+          { key: "datetime",   label: "Timestamp of missed call(s) (with timezone)", type: "datetime_multi" },
           { key: "dndStatus",  label: "DND status at time of call", type: "text", hint: "On / Off / Unknown" },
           { key: "device",     label: "Device & OS", type: "text" },
           { key: "browser",    label: "Browser", type: "text" },
@@ -161,8 +161,8 @@
         escalate: [
           { key: "ticket",     label: "Zendesk ticket #", type: "text" },
           { key: "advocate",   label: "Advocate name", type: "text" },
-          { key: "datetime",   label: "Call timestamp (with timezone)", type: "datetime" },
-          { key: "patient",    label: "Patient ID", type: "text" },
+          { key: "datetime",   label: "Call timestamp(s) (with timezone)", type: "datetime_multi" },
+          { key: "patient",    label: "Patient ID(s)", type: "text" },
           { key: "browser",    label: "Browser", type: "text" },
           { key: "twilioShot", label: "Twilio Network Test screenshot", type: "screenshot" },
           { key: "speedShot",  label: "Speed test screenshot", type: "screenshot" },
@@ -188,8 +188,8 @@
         escalate: [
           { key: "ticket",     label: "Zendesk ticket #", type: "text" },
           { key: "advocate",   label: "Advocate name", type: "text" },
-          { key: "datetime",   label: "Call timestamp (with timezone)", type: "datetime" },
-          { key: "patient",    label: "Patient ID", type: "text" },
+          { key: "datetime",   label: "Call timestamp(s) (with timezone)", type: "datetime_multi" },
+          { key: "patient",    label: "Patient ID(s)", type: "text" },
           { key: "browser",    label: "Browser version", type: "text" },
           { key: "network",    label: "Network type (Wi-Fi / wired / cellular)", type: "text" },
           { key: "twilioShot", label: "Twilio Network Test screenshot", type: "screenshot" },
@@ -213,7 +213,7 @@
         ],
         escalate: [
           { key: "ticket",     label: "Zendesk ticket #", type: "text" },
-          { key: "datetime",   label: "Call timestamps (with timezone)", type: "datetime" },
+          { key: "datetime",   label: "Call timestamp(s) (with timezone)", type: "datetime_multi" },
           { key: "callDur",    label: "Call duration", type: "text" },
           { key: "advocate",   label: "Advocate name", type: "text" },
           { key: "device",     label: "Device(s)", type: "text" },
@@ -241,7 +241,7 @@
         escalate: [
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate / physician name", type: "text" },
-          { key: "patient",  label: "Patient ID", type: "text" },
+          { key: "patient",  label: "Patient ID(s)", type: "text" },
           { key: "visitId",  label: "Visit ID", type: "text", hint: "Pull from admin URL after \"visitid=\"" },
           { key: "datetime", label: "Visit timestamp (with timezone)", type: "datetime" },
           { key: "browser",  label: "Browser", type: "text" },
@@ -264,7 +264,7 @@
         escalate: [
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
-          { key: "patient",  label: "Patient ID", type: "text" },
+          { key: "patient",  label: "Patient ID(s)", type: "text" },
           { key: "visitId",  label: "Visit ID", type: "text", hint: "Pull from admin URL after \"visitid=\"" },
           { key: "datetime", label: "Visit timestamp (with timezone)", type: "datetime" },
           { key: "browser",  label: "Browser", type: "text" },
@@ -286,7 +286,7 @@
         escalate: [
           { key: "ticket",    label: "Zendesk ticket #", type: "text" },
           { key: "advocate",  label: "Advocate name", type: "text" },
-          { key: "patient",   label: "Patient ID", type: "text" },
+          { key: "patient",   label: "Patient ID(s)", type: "text" },
           { key: "visitId",   label: "Visit ID", type: "text" },
           { key: "datetime",  label: "Visit timestamp (with timezone)", type: "datetime" },
           { key: "what",      label: "What specifically froze or failed?", type: "textarea" },
@@ -310,7 +310,7 @@
         escalate: [
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
-          { key: "patient",  label: "Patient ID", type: "text" },
+          { key: "patient",  label: "Patient ID(s)", type: "text" },
           { key: "visitId",  label: "Visit ID", type: "text" },
           { key: "datetime", label: "Visit timestamp (with timezone)", type: "datetime" },
           { key: "patSees",  label: "What does the patient see when clicking the link?", type: "textarea" },
@@ -332,7 +332,7 @@
         escalate: [
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
-          { key: "patient",  label: "Patient ID", type: "text" },
+          { key: "patient",  label: "Patient ID(s)", type: "text" },
           { key: "visitId",  label: "Visit ID", type: "text" },
           { key: "datetime", label: "Visit timestamp (with timezone)", type: "datetime" },
           { key: "what",     label: "What did the patient see/hear?", type: "textarea" },
@@ -351,7 +351,7 @@
         escalate: [
           { key: "ticket",    label: "Zendesk ticket #", type: "text" },
           { key: "advocate",  label: "Advocate name", type: "text" },
-          { key: "patient",   label: "Patient ID", type: "text" },
+          { key: "patient",   label: "Patient ID(s)", type: "text" },
           { key: "visitId",   label: "Visit ID", type: "text" },
           { key: "datetime",  label: "Visit timestamp (with timezone)", type: "datetime" },
           { key: "patSees",   label: "What does the patient see/hear?", type: "textarea", hint: "Blank screen / spinner / error — get exact text" },
@@ -375,12 +375,8 @@
           { key: "datetime",  label: "Timestamps of attempts", type: "datetime" },
           { key: "faxId",     label: "Fax ID", type: "text", hint: "Required — Documo can't pull logs without it" },
           { key: "errCode",   label: "Final 4-digit error code", type: "text" },
-          { key: "errCodes",  label: "All error codes received (in order of attempt)", type: "text" },
-          { key: "consistent",label: "Was the final code consistent across attempts?", type: "text" },
           { key: "recipient", label: "Recipient fax number", type: "text" },
           { key: "senderFax", label: "Advocate's Solace fax number", type: "text" },
-          { key: "fileType",  label: "File type", type: "text" },
-          { key: "fileSize",  label: "File size", type: "text" },
           { key: "pages",     label: "Number of pages", type: "text" },
           { key: "attempts",  label: "Number of attempts", type: "text" },
           { key: "notes",     label: "Additional notes", type: "textarea" },
@@ -419,8 +415,8 @@
         escalate: [
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
-          { key: "patient",  label: "Patient ID", type: "text" },
-          { key: "datetime", label: "Issue timestamp (with timezone)", type: "datetime" },
+          { key: "patient",  label: "Patient ID(s)", type: "text" },
+          { key: "datetime", label: "Issue timestamp(s) (with timezone)", type: "datetime_multi" },
           { key: "errMsg",   label: "Error message exact text", type: "text" },
           { key: "errShot",  label: "Error message screenshot", type: "screenshot" },
           { key: "scope",    label: "One patient or all?", type: "text" },
@@ -439,8 +435,8 @@
         escalate: [
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
-          { key: "patient",  label: "Patient ID", type: "text" },
-          { key: "datetime", label: "Issue timestamp (with timezone)", type: "datetime" },
+          { key: "patient",  label: "Patient ID(s)", type: "text" },
+          { key: "datetime", label: "Issue timestamp(s) (with timezone)", type: "datetime_multi" },
           { key: "showsSent",label: "Message shows as sent in advocate inbox?", type: "text" },
           { key: "notes",    label: "Additional notes", type: "textarea" },
         ],
@@ -457,8 +453,8 @@
         escalate: [
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
-          { key: "patient",  label: "Patient ID", type: "text" },
-          { key: "datetime", label: "Issue timestamp (with timezone)", type: "datetime" },
+          { key: "patient",  label: "Patient ID(s)", type: "text" },
+          { key: "datetime", label: "Issue timestamp(s) (with timezone)", type: "datetime_multi" },
           { key: "showsSent",label: "Message shows as sent in advocate inbox?", type: "text" },
           { key: "notes",    label: "Additional notes", type: "textarea" },
         ],
@@ -473,8 +469,8 @@
         escalate: [
           { key: "ticket",     label: "Zendesk ticket #", type: "text" },
           { key: "advocate",   label: "Advocate name", type: "text" },
-          { key: "patient",    label: "Patient ID", type: "text" },
-          { key: "datetime",   label: "Issue timestamp (with timezone)", type: "datetime" },
+          { key: "patient",    label: "Patient ID(s)", type: "text" },
+          { key: "datetime",   label: "Issue timestamp(s) (with timezone)", type: "datetime_multi" },
           { key: "patChannel", label: "Did patient reply in-platform or from personal phone?", type: "text" },
           { key: "patSent",    label: "Patient sees reply as sent?", type: "text" },
           { key: "notes",      label: "Additional notes", type: "textarea" },
@@ -491,7 +487,7 @@
         escalate: [
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
-          { key: "datetime", label: "Issue timestamp (with timezone)", type: "datetime" },
+          { key: "datetime", label: "Issue timestamp(s) (with timezone)", type: "datetime_multi" },
           { key: "uiDesc",   label: "What exactly is broken?", type: "textarea" },
           { key: "errShot",  label: "Screenshot of issue", type: "screenshot" },
           { key: "scope",    label: "One conversation or all?", type: "text" },
@@ -509,7 +505,7 @@
         escalate: [
           { key: "ticket",      label: "Zendesk ticket #", type: "text" },
           { key: "advocate",    label: "Advocate name", type: "text" },
-          { key: "patient",     label: "Patient ID", type: "text" },
+          { key: "patient",     label: "Patient ID(s)", type: "text" },
           { key: "datetime",    label: "Call timestamp (with timezone)", type: "datetime" },
           { key: "callType",    label: "Call type", type: "text", hint: "Phone Call / Video Visit" },
           { key: "sched",       label: "Impromptu or scheduled?", type: "text" },
@@ -530,7 +526,7 @@
         escalate: [
           { key: "ticket",      label: "Zendesk ticket #", type: "text" },
           { key: "advocate",    label: "Advocate name", type: "text" },
-          { key: "patient",     label: "Patient ID", type: "text" },
+          { key: "patient",     label: "Patient ID(s)", type: "text" },
           { key: "datetime",    label: "Call timestamp (with timezone)", type: "datetime" },
           { key: "callType",    label: "Call type", type: "text", hint: "Phone Call / Video Visit" },
           { key: "sched",       label: "Impromptu or scheduled?", type: "text" },
@@ -551,7 +547,7 @@
         escalate: [
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
-          { key: "patient",  label: "Patient ID", type: "text" },
+          { key: "patient",  label: "Patient ID(s)", type: "text" },
           { key: "datetime", label: "Call timestamp (with timezone)", type: "datetime" },
           { key: "scope",    label: "All transcripts or just this one?", type: "text" },
           { key: "device",   label: "Browser & device", type: "text" },
@@ -566,7 +562,7 @@
         escalate: [
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
-          { key: "patient",  label: "Patient ID", type: "text", hint: "\"N/A\" if not patient-related" },
+          { key: "patient",  label: "Patient ID(s)", type: "text", hint: "\"N/A\" if not patient-related" },
           { key: "datetime", label: "Issue timestamp (with timezone)", type: "datetime" },
           { key: "title",    label: "Brief issue title", type: "text", hint: "Specific. \"Advocate unable to access patient file after care transfer\" not \"platform issue\"" },
           { key: "desc",     label: "Full description", type: "textarea", hint: "What happened, what was expected, exact error messages" },
@@ -639,6 +635,48 @@
       }
       if (cat === "Other") return "other";
       return null;
+    }
+
+    function MultiDateTimeInput({ value, onChange }) {
+      // value: array of { datetime: string, patient: string }
+      const list = Array.isArray(value) ? value : [{ datetime: "", patient: "" }];
+      const multi = list.length > 1;
+
+      const updateItem = (i, key, v) => {
+        const next = list.map((it, idx) => idx === i ? { ...it, [key]: v } : it);
+        onChange(next);
+      };
+      const addItem = () => onChange([...list, { datetime: "", patient: "" }]);
+      const removeItem = (i) => {
+        const next = list.filter((_, idx) => idx !== i);
+        onChange(next.length ? next : [{ datetime: "", patient: "" }]);
+      };
+
+      return (
+        <div>
+          {list.map((item, i) => (
+            <div key={i} style={{marginBottom:10,padding: multi ? 10 : 0, border: multi ? "1px solid #e5e7eb" : "none", borderRadius:8, background: multi ? "#f9fafb" : "transparent"}}>
+              {multi && (
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <div style={{fontSize:11,fontWeight:600,color:"#6b7280"}}>Call #{i+1}</div>
+                  <button onClick={() => removeItem(i)} style={{background:"none",border:"none",fontSize:11,color:"#ef4444",cursor:"pointer",fontFamily:"inherit"}}>Remove</button>
+                </div>
+              )}
+              <DateTimeInput value={item.datetime} onChange={v => updateItem(i, "datetime", v)} />
+              {multi && (
+                <div style={{marginTop:8}}>
+                  <div style={{fontSize:11,color:"#9ca3af",marginBottom:3}}>Patient ID for this call</div>
+                  <input type="text" value={item.patient || ""} onChange={e => updateItem(i, "patient", e.target.value)}
+                    style={{width:"100%",padding:"8px 10px",border:"1px solid #d1d5db",borderRadius:7,fontSize:13,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
+                </div>
+              )}
+            </div>
+          ))}
+          <button onClick={addItem} style={{marginTop:4,padding:"6px 12px",border:"1px dashed #d1d5db",borderRadius:7,background:"#fff",color:"#374151",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+            + Add another timestamp
+          </button>
+        </div>
+      );
     }
 
     function DateTimeInput({ value, onChange }) {
@@ -887,7 +925,19 @@
       }
 
       function setEsc(key, val) { setEscVals(v => ({...v, [key]: val})); }
-      function getEscText(key) { const v = escVals[key]; if (!v) return ""; return typeof v === "string" ? v : v.text || ""; }
+      function getEscText(key) {
+        const v = escVals[key];
+        if (!v) return "";
+        if (typeof v === "string") return v;
+        if (Array.isArray(v)) {
+          // datetime_multi format
+          const valid = v.filter(item => item.datetime);
+          if (valid.length === 0) return "";
+          if (valid.length === 1) return valid[0].datetime;
+          return valid.map((item, i) => `Call ${i+1}: ${item.datetime}${item.patient ? ` (Patient: ${item.patient})` : ""}`).join("\n");
+        }
+        return v.text || "";
+      }
 
       function buildTicket() {
         if (!ep) return "";
@@ -1090,6 +1140,7 @@
                       style={{width:"100%",padding:"9px 11px",border:"1px solid #d1d5db",borderRadius:8,fontSize:14,fontFamily:"inherit",boxSizing:"border-box",outline:"none",resize:"vertical"}}/>
                   )}
                   {f.type === "datetime" && <DateTimeInput value={escVals[f.key]||""} onChange={v=>setEsc(f.key, v)}/>}
+                  {f.type === "datetime_multi" && <MultiDateTimeInput value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)}/>}
                   {f.type === "screenshot" && <ScreenshotField value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)}/>}
                 </div>
               ))}
