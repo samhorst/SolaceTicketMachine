@@ -705,7 +705,6 @@
           { key: "title",    label: "Brief issue title", type: "text", hint: "Specific. \"Advocate unable to access patient file after care transfer\" not \"platform issue\"" },
           { key: "desc",     label: "Full description", type: "textarea", hint: "What happened, what was expected, exact error messages" },
           { key: "device",   label: "Device & browser", type: "text" },
-          { key: "errShot",  label: "Screenshot of error or unexpected UI", type: "screenshot" },
         ],
         title: (esc) => `CX RQ — [${esc.title || "Issue"} | NEEDS TRIAGE]`,
         summary: (ctx, esc) => `Unclassified: "${esc.title}". ${esc.desc}`,
@@ -1804,4 +1803,5 @@
     root.render(<App />);
   </script>
 </body>
+</html>
 </html>
