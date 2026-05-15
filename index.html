@@ -3,27 +3,180 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CX Ticket Decision Tree</title>
+  <title>Solace CX Ticket Decision Tree</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;500;700;900&display=swap" rel="stylesheet">
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
-    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #fff; }
+    /* ============================================================
+       SOLACE DESIGN TOKENS
+       Sourced from the Solace Brand Guidelines (Figma + Notion)
+       ============================================================ */
+    :root {
+      /* Primary palette — Solace Green ramp */
+      --green-100: #F4F8F7;   /* Lily White */
+      --green-200: #E9F0EE;   /* Aura */
+      --green-300: #F4F8F7;   /* Thalassa */
+      --green-400: #BED3CC;   /* Sagewater */
+      --green-500: #AFC8BF;   /* Opal */
+      --green-600: #3F937C;   /* Eucalyptus */
+      --green-700: #347866;   /* Emerald */
+      --green-800: #285E50;   /* Evening Sea */
+      --green-900: #1D4339;   /* Solace Green */
+
+      /* Neutrals */
+      --eggshell: #FFFDFA;
+      --marble: #EEECEB;
+      --soft-black: #101010;
+      --true-white: #FFFFFF;
+
+      /* Secondary palette — Pink/Wine */
+      --prim: #EAD7E1;
+      --lily: #C99CB3;
+      --vin-rouge: #985276;
+      --tawny-port: #6F3C56;
+      --cassis: #522C40;
+
+      /* Secondary palette — Gold/Cream */
+      --silk: #FFF7E9;
+      --miel: #F4E5CA;
+      --chamois: #E9CC95;
+      --golden-hour: #DEB260;
+      --solara: #D7A13B;
+
+      /* Semantic — derived from brand for AA contrast */
+      --text-primary: var(--soft-black);
+      --text-secondary: #4a5852;
+      --text-tertiary: #6b7670;
+      --text-muted: #8a948f;
+
+      --border-subtle: var(--marble);
+      --border-default: #d8d8d3;
+      --border-strong: #b8b8b2;
+
+      --surface-page: var(--eggshell);
+      --surface-card: var(--true-white);
+      --surface-sunken: #f7f5f1;
+
+      /* Status colors — brand-aligned */
+      --warning-bg: var(--silk);
+      --warning-border: var(--chamois);
+      --warning-text: #6b4a14;
+      --warning-strong: var(--solara);
+
+      --danger-bg: #fdf0e8;
+      --danger-border: #f3c5a8;
+      --danger-text: var(--cassis);
+      --danger-strong: var(--vin-rouge);
+
+      --info-bg: var(--green-200);
+      --info-border: var(--green-400);
+      --info-text: var(--green-900);
+
+      /* Typography */
+      --font-body: 'Lato', system-ui, -apple-system, sans-serif;
+      --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+      /* Sizing — bumped up for accessibility */
+      --fs-xs: 13px;
+      --fs-sm: 14px;
+      --fs-base: 16px;
+      --fs-md: 17px;
+      --fs-lg: 19px;
+      --fs-xl: 22px;
+      --fs-2xl: 26px;
+
+      /* Radii */
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 20px;
+
+      /* Shadows */
+      --shadow-sm: 0 1px 2px rgba(29, 67, 57, 0.06);
+      --shadow-md: 0 4px 12px rgba(29, 67, 57, 0.08);
+      --shadow-lg: 0 18px 40px rgba(29, 67, 57, 0.18);
+      --shadow-focus: 0 0 0 3px rgba(63, 147, 124, 0.35);
+    }
+
     * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--surface-page);
+      font-family: var(--font-body);
+      color: var(--text-primary);
+      font-size: var(--fs-base);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Subtle textured background — Solace warmth without overwhelming */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(63, 147, 124, 0.04) 0%, transparent 40%),
+        radial-gradient(circle at 0% 100%, rgba(215, 161, 59, 0.03) 0%, transparent 40%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Universal focus state — keyboard accessibility */
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible,
+    select:focus-visible,
+    [role="button"]:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+      border-color: var(--green-600) !important;
+    }
+
+    /* Screen reader only */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
   </style>
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel" data-presets="env,react">
-    const { useState, useRef } = React;
+    const { useState, useRef, useEffect } = React;
 
+    /* ============================================================
+       CATEGORY THEMING — mapped to the Solace brand palette
+       Each category gets a soft brand-aligned tint, with a stronger
+       border and accessible text color (AA on the bg).
+       ============================================================ */
     const CAT_COLORS = {
-      "Phone Call": { bg: "#e6f1fb", text: "#185fa5", border: "#b5d4f4" },
-      "Video Visit": { bg: "#eaf3de", text: "#3b6d11", border: "#c0dd97" },
-      "Fax":        { bg: "#faeeda", text: "#854f0b", border: "#fac775" },
-      "Messaging":  { bg: "#f1efe8", text: "#5f5e5a", border: "#d3d1c7" },
-      "Transcript": { bg: "#f3eefb", text: "#6b21a8", border: "#d8b4fe" },
-      "Other":      { bg: "#f1efe8", text: "#5f5e5a", border: "#d3d1c7" },
+      "Phone Call":  { bg: "#E9F0EE",      text: "#1D4339",      border: "#BED3CC" }, // Aura / Solace Green
+      "Video Visit": { bg: "#F4E5CA",      text: "#6b4a14",      border: "#E9CC95" }, // Miel / dark gold
+      "Fax":         { bg: "#EAD7E1",      text: "#522C40",      border: "#C99CB3" }, // Prim / Cassis
+      "Messaging":   { bg: "#FFF7E9",      text: "#7a4a0e",      border: "#E9CC95" }, // Silk / gold
+      "Transcript":  { bg: "#F4F8F7",      text: "#285E50",      border: "#AFC8BF" }, // Lily White / Evening Sea
+      "Other":       { bg: "#EEECEB",      text: "#101010",      border: "#d8d8d3" }, // Marble / Soft Black
     };
     const CATEGORIES = ["Phone Call", "Video Visit", "Fax", "Messaging", "Transcript", "Other"];
     const TIMEZONES = ["ET", "CT", "MT", "PT", "AKT", "HT", "Other"];
@@ -78,7 +231,7 @@
         severity: "Likely internet speed issue",
         description: "Bandwidth failures indicate the advocate's connection doesn't have enough speed to support VoIP. Minimums are ≥10 Mbps down, ≥5 up, <100ms ping.",
         steps: [
-          React.createElement(React.Fragment, null, "Have the advocate run a speed test at ", React.createElement("a", {href:"https://www.speedtest.net", target:"_blank", rel:"noopener noreferrer", style:{color:"#1d4ed8",textDecoration:"underline"}}, "speedtest.net")),
+          React.createElement(React.Fragment, null, "Have the advocate run a speed test at ", React.createElement("a", {href:"https://www.speedtest.net", target:"_blank", rel:"noopener noreferrer", style:{color:"var(--green-800)",textDecoration:"underline",fontWeight:700}}, "speedtest.net")),
           "If below targets: move closer to the router, switch to wired ethernet, or use a faster network",
           "Disable VPN and any bandwidth-heavy apps (streaming, large downloads, cloud sync)",
           "If on cellular, switch to Wi-Fi if available",
@@ -108,11 +261,9 @@
       "Multiple categories": "twilio_multiple",
     };
 
-    // Field types:
-    //   text, textarea, screenshot, datetime
-    //   datetime_multi          — phone/messaging/other: timestamps + per-slot patient ID (when multi)
-    //   datetime_multi_visit    — video/transcript: timestamps + visit ID (always) + per-slot patient ID (when multi)
-
+    // ============================================================
+    // ENDPOINTS — full logic preserved from original
+    // ============================================================
     const ENDPOINTS = {
       "phone_outbound_failed": {
         troubleshoot: [
@@ -624,6 +775,86 @@
       return null;
     }
 
+    /* ============================================================
+       SHARED STYLES — design tokens applied
+       ============================================================ */
+    const baseInput = {
+      width: "100%",
+      padding: "12px 14px",
+      border: "1.5px solid var(--border-default)",
+      borderRadius: "var(--radius-md)",
+      fontSize: "var(--fs-base)",
+      fontFamily: "var(--font-body)",
+      color: "var(--text-primary)",
+      background: "var(--surface-card)",
+      boxSizing: "border-box",
+      outline: "none",
+      transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+    };
+
+    /* ============================================================
+       BUTTON — primary brand button
+       ============================================================ */
+    const Button = React.forwardRef(function Button({ children, onClick, variant = "default", disabled, type, style = {}, ariaLabel }, ref) {
+      const variants = {
+        default: {
+          background: "var(--surface-card)",
+          color: "var(--text-primary)",
+          border: "1.5px solid var(--border-default)",
+        },
+        primary: {
+          background: "var(--green-900)",
+          color: "var(--eggshell)",
+          border: "1.5px solid var(--green-900)",
+        },
+        secondary: {
+          background: "var(--green-200)",
+          color: "var(--green-900)",
+          border: "1.5px solid var(--green-400)",
+        },
+        ghost: {
+          background: "transparent",
+          color: "var(--text-secondary)",
+          border: "1.5px solid transparent",
+        },
+        danger: {
+          background: "var(--surface-card)",
+          color: "var(--danger-strong)",
+          border: "1.5px solid var(--danger-border)",
+        },
+      };
+      return (
+        <button
+          ref={ref}
+          type={type || "button"}
+          onClick={onClick}
+          disabled={disabled}
+          aria-label={ariaLabel}
+          style={{
+            padding: "12px 22px",
+            borderRadius: "var(--radius-md)",
+            fontSize: "var(--fs-base)",
+            fontFamily: "var(--font-body)",
+            fontWeight: 700,
+            cursor: disabled ? "not-allowed" : "pointer",
+            opacity: disabled ? 0.55 : 1,
+            transition: "transform 0.06s ease, box-shadow 0.15s ease, background-color 0.15s ease",
+            minHeight: 48,
+            ...variants[variant],
+            ...style,
+          }}
+          onMouseDown={e => { if (!disabled) e.currentTarget.style.transform = "translateY(1px)"; }}
+          onMouseUp={e => { e.currentTarget.style.transform = "translateY(0)"; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          {children}
+        </button>
+      );
+    });
+
+    /* ============================================================
+       DATE TIME INPUT
+       ============================================================ */
     function DateTimeInput({ value, onChange }) {
       const now = new Date();
       const pad = n => String(n).padStart(2,"0");
@@ -655,32 +886,46 @@
       const handleTz = e => { setTz(e.target.value); emit(date, timeDisp, e.target.value); };
       const useNow = () => { const n=new Date(); const d=toDate(n),t=toTime(n); setDate(d); setTimeRaw(toRaw(n)); setTimeDisp(t); emit(d,t,tz); };
 
-      const inp = {width:"100%",padding:"8px 10px",border:"1px solid #d1d5db",borderRadius:7,fontSize:13,fontFamily:"inherit",boxSizing:"border-box",outline:"none"};
+      const labelStyle = {fontSize:"var(--fs-xs)",color:"var(--text-tertiary)",marginBottom:6,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.04em"};
 
       return (
         <div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+            <div style={{flex:"1 1 160px"}}>
+              <div style={labelStyle}>Date</div>
+              <input type="text" value={date} onChange={handleDate} placeholder="MM/DD/YYYY" maxLength={10} style={baseInput} aria-label="Date"/>
+            </div>
             <div style={{flex:"1 1 130px"}}>
-              <div style={{fontSize:11,color:"#9ca3af",marginBottom:3}}>Date</div>
-              <input type="text" value={date} onChange={handleDate} placeholder="MM/DD/YYYY" maxLength={10} style={inp}/>
+              <div style={labelStyle}>Time</div>
+              <input type="time" value={timeRaw} onChange={handleTime} style={baseInput} aria-label="Time"/>
             </div>
-            <div style={{flex:"1 1 110px"}}>
-              <div style={{fontSize:11,color:"#9ca3af",marginBottom:3}}>Time</div>
-              <input type="time" value={timeRaw} onChange={handleTime} style={inp}/>
-            </div>
-            <div style={{flex:"0 0 90px"}}>
-              <div style={{fontSize:11,color:"#9ca3af",marginBottom:3}}>Timezone</div>
-              <select value={tz} onChange={handleTz} style={{...inp,padding:"8px 6px",cursor:"pointer"}}>
+            <div style={{flex:"0 0 110px"}}>
+              <div style={labelStyle}>Timezone</div>
+              <select value={tz} onChange={handleTz} style={{...baseInput, paddingRight: 8, cursor: "pointer"}} aria-label="Timezone">
                 {TIMEZONES.map(z => <option key={z} value={z}>{z}</option>)}
               </select>
             </div>
           </div>
-          <button onClick={useNow} style={{marginTop:6,padding:"4px 10px",border:"1px solid #d1d5db",borderRadius:6,background:"#f9fafb",color:"#374151",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>🕐 Use current time</button>
-          {value && <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>→ {value}</div>}
+          <button onClick={useNow} style={{
+            marginTop:10,
+            padding:"8px 14px",
+            border:"1.5px solid var(--border-default)",
+            borderRadius:"var(--radius-sm)",
+            background:"var(--surface-sunken)",
+            color:"var(--text-secondary)",
+            fontSize:"var(--fs-sm)",
+            fontWeight:700,
+            cursor:"pointer",
+            fontFamily:"var(--font-body)",
+          }}>🕐 Use current time</button>
+          {value && <div style={{fontSize:"var(--fs-sm)",color:"var(--text-tertiary)",marginTop:6,fontStyle:"italic"}}>→ {value}</div>}
         </div>
       );
     }
 
+    /* ============================================================
+       MULTI DATE TIME — for multiple call/visit slots
+       ============================================================ */
     function MultiDateTimeInput({ value, onChange, withVisitId }) {
       const nowStr = () => {
         const now = new Date();
@@ -698,9 +943,7 @@
         const next = list.map((it, idx) => idx === i ? { ...it, [key]: v, touched: true } : it);
         onChange(next);
       };
-      const addItem = () => {
-        onChange([...list, { datetime: nowStr(), patient: "", visitId: "", touched: true }]);
-      };
+      const addItem = () => { onChange([...list, { datetime: nowStr(), patient: "", visitId: "", touched: true }]); };
       const removeItem = (i) => {
         const next = list.filter((_, idx) => idx !== i);
         onChange(next.length ? next : [{ datetime: "", patient: "", visitId: "", touched: false }]);
@@ -712,108 +955,217 @@
       }));
 
       const cardStyle = multi || withVisitId;
+      const subLabel = {fontSize:"var(--fs-sm)",color:"var(--text-secondary)",marginBottom:6,fontWeight:700};
 
       return (
         <div>
           {displayList.map((item, i) => (
-            <div key={i} style={{marginBottom:10,padding: cardStyle ? 10 : 0, border: cardStyle ? "1px solid #e5e7eb" : "none", borderRadius:8, background: cardStyle ? "#f9fafb" : "transparent"}}>
+            <div key={i} style={{
+              marginBottom:14,
+              padding: cardStyle ? 16 : 0,
+              border: cardStyle ? "1.5px solid var(--border-subtle)" : "none",
+              borderRadius: "var(--radius-md)",
+              background: cardStyle ? "var(--surface-sunken)" : "transparent",
+            }}>
               {multi && (
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                  <div style={{fontSize:11,fontWeight:600,color:"#6b7280"}}>{itemLabel} #{i+1}</div>
-                  <button onClick={() => removeItem(i)} style={{background:"none",border:"none",fontSize:11,color:"#ef4444",cursor:"pointer",fontFamily:"inherit"}}>Remove</button>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                  <div style={{fontSize:"var(--fs-sm)",fontWeight:700,color:"var(--green-900)"}}>{itemLabel} #{i+1}</div>
+                  <button onClick={() => removeItem(i)} style={{background:"none",border:"none",fontSize:"var(--fs-sm)",color:"var(--danger-strong)",cursor:"pointer",fontFamily:"var(--font-body)",fontWeight:700,padding:"4px 8px",borderRadius:"var(--radius-sm)"}}>Remove</button>
                 </div>
               )}
               <DateTimeInput value={item.displayValue} onChange={v => updateItem(i, "datetime", v)} />
-              {!item.touched && !multi && <div style={{fontSize:11,color:"#9ca3af",marginTop:3,fontStyle:"italic"}}>Click any field or "Use current time" to set this timestamp.</div>}
+              {!item.touched && !multi && <div style={{fontSize:"var(--fs-sm)",color:"var(--text-tertiary)",marginTop:8,fontStyle:"italic"}}>Click any field or "Use current time" to set this timestamp.</div>}
               {withVisitId && (
-                <div style={{marginTop:12,paddingTop:10,borderTop:cardStyle ? "1px solid #e5e7eb" : "none"}}>
-                  <div style={{fontSize:12,color:"#374151",marginBottom:3,fontWeight:500}}>Visit ID{multi ? ` for ${itemLabel.toLowerCase()} #${i+1}` : ""}</div>
-                  <div style={{fontSize:11,color:"#9ca3af",marginBottom:5,fontStyle:"italic"}}>Pull from admin URL after "visitid="</div>
-                  <input type="text" value={item.visitId || ""} onChange={e => updateItem(i, "visitId", e.target.value)}
-                    style={{width:"100%",padding:"8px 10px",border:"1px solid #d1d5db",borderRadius:7,fontSize:13,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
+                <div style={{marginTop:14,paddingTop:14,borderTop: cardStyle ? "1.5px solid var(--border-subtle)" : "none"}}>
+                  <div style={subLabel}>Visit ID{multi ? ` for ${itemLabel.toLowerCase()} #${i+1}` : ""}</div>
+                  <div style={{fontSize:"var(--fs-sm)",color:"var(--text-tertiary)",marginBottom:8,fontStyle:"italic"}}>Pull from admin URL after "visitid="</div>
+                  <input type="text" value={item.visitId || ""} onChange={e => updateItem(i, "visitId", e.target.value)} style={baseInput} aria-label={`Visit ID ${multi ? `for visit ${i+1}` : ""}`}/>
                 </div>
               )}
               {multi && (
-                <div style={{marginTop:10}}>
-                  <div style={{fontSize:12,color:"#374151",marginBottom:3,fontWeight:500}}>Patient ID for this {itemLabel.toLowerCase()}</div>
-                  <input type="text" value={item.patient || ""} onChange={e => updateItem(i, "patient", e.target.value)}
-                    style={{width:"100%",padding:"8px 10px",border:"1px solid #d1d5db",borderRadius:7,fontSize:13,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
+                <div style={{marginTop:14}}>
+                  <div style={subLabel}>Patient ID for this {itemLabel.toLowerCase()}</div>
+                  <input type="text" value={item.patient || ""} onChange={e => updateItem(i, "patient", e.target.value)} style={baseInput} aria-label={`Patient ID for ${itemLabel.toLowerCase()} ${i+1}`}/>
                 </div>
               )}
             </div>
           ))}
-          <button onClick={addItem} style={{marginTop:4,padding:"6px 12px",border:"1px dashed #d1d5db",borderRadius:7,background:"#fff",color:"#374151",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
-            + Add another timestamp
-          </button>
+          <button onClick={addItem} style={{
+            marginTop:6,
+            padding:"10px 16px",
+            border:"1.5px dashed var(--border-strong)",
+            borderRadius:"var(--radius-md)",
+            background:"var(--surface-card)",
+            color:"var(--text-secondary)",
+            fontSize:"var(--fs-sm)",
+            fontWeight:700,
+            cursor:"pointer",
+            fontFamily:"var(--font-body)",
+          }}>+ Add another timestamp</button>
         </div>
       );
     }
 
+    /* ============================================================
+       SCREENSHOT FIELD
+       ============================================================ */
     function ScreenshotField({ value, onChange }) {
       const fileRef = useRef();
-      const handleFile = f => { if(!f)return; const r=new FileReader(); r.onload=e=>onChange({text:`[Screenshot: ${f.name}]`,dataUrl:e.target.result,name:f.name}); r.readAsDataURL(f); };
+      const handleFile = f => {
+        if(!f) return;
+        const r = new FileReader();
+        r.onload = e => onChange({text:`[Screenshot: ${f.name}]`, dataUrl:e.target.result, name:f.name});
+        r.readAsDataURL(f);
+      };
       return (
         <div>
-          <div onClick={()=>fileRef.current.click()}
-            onDrop={e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f&&f.type.startsWith("image/"))handleFile(f);}}
+          <div
+            onClick={() => fileRef.current.click()}
+            onDrop={e=>{e.preventDefault(); const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith("image/")) handleFile(f);}}
             onDragOver={e=>e.preventDefault()}
-            style={{border:"2px dashed #d1d5db",borderRadius:8,padding:"0.85rem",textAlign:"center",cursor:"pointer",background:"#fafafa"}}>
+            role="button"
+            tabIndex={0}
+            onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault(); fileRef.current.click();}}}
+            style={{
+              border:"2px dashed var(--border-default)",
+              borderRadius:"var(--radius-md)",
+              padding:"1.25rem",
+              textAlign:"center",
+              cursor:"pointer",
+              background:"var(--surface-sunken)",
+              transition:"border-color 0.15s ease, background-color 0.15s ease",
+            }}
+          >
             {value?.dataUrl
-              ? <img src={value.dataUrl} alt={value.name} style={{maxWidth:"100%",maxHeight:120,borderRadius:5,objectFit:"contain"}}/>
-              : <div><div style={{fontSize:18,marginBottom:2}}>📎</div><div style={{fontSize:12,color:"#6b7280"}}>Click or drag & drop to attach</div></div>}
-            <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
+              ? <img src={value.dataUrl} alt={value.name} style={{maxWidth:"100%",maxHeight:160,borderRadius:"var(--radius-sm)",objectFit:"contain"}}/>
+              : <div>
+                  <div style={{fontSize:24,marginBottom:6}}>📎</div>
+                  <div style={{fontSize:"var(--fs-base)",color:"var(--text-secondary)",fontWeight:500}}>Click or drag &amp; drop to attach</div>
+                </div>}
+            <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e => handleFile(e.target.files[0])}/>
           </div>
-          {value && <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>✓ {value.name} — <span style={{cursor:"pointer",textDecoration:"underline"}} onClick={e=>{e.stopPropagation();onChange(null);}}>Remove</span></div>}
+          {value && <div style={{fontSize:"var(--fs-sm)",color:"var(--text-tertiary)",marginTop:8}}>
+            ✓ {value.name} —{" "}
+            <button
+              onClick={e=>{e.stopPropagation(); onChange(null);}}
+              style={{background:"none",border:"none",color:"var(--danger-strong)",textDecoration:"underline",cursor:"pointer",fontFamily:"var(--font-body)",fontSize:"var(--fs-sm)",padding:0}}
+            >Remove</button>
+          </div>}
         </div>
       );
     }
 
+    /* ============================================================
+       FAX CODE ADVISORY
+       ============================================================ */
     function FaxCodeAdvisory({ code }) {
       const info = getFaxCodeInfo(code);
       if (!info) return null;
       return (
-        <div style={{marginTop:6,padding:"8px 12px",background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:7,fontSize:12,color:"#78350f",lineHeight:1.5}}>
-          <strong>{code} — {info.label}</strong><br/>{info.action}
+        <div role="note" style={{
+          marginTop:10,
+          padding:"12px 16px",
+          background:"var(--warning-bg)",
+          border:"1.5px solid var(--warning-border)",
+          borderRadius:"var(--radius-md)",
+          fontSize:"var(--fs-sm)",
+          color:"var(--warning-text)",
+          lineHeight:1.6,
+        }}>
+          <strong style={{fontWeight:900}}>{code} — {info.label}</strong><br/>{info.action}
         </div>
       );
     }
 
+    /* ============================================================
+       USER ERROR BANNER
+       ============================================================ */
     function UserErrorBanner({ note }) {
       return (
-        <div style={{background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:10,padding:"0.9rem 1rem",marginBottom:20}}>
-          <div style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#c2410c",marginBottom:5}}>⚠️ Likely user-side issue</div>
-          <div style={{fontSize:13,color:"#7c2d12",lineHeight:1.6}}>{note}</div>
+        <div role="note" style={{
+          background:"var(--danger-bg)",
+          border:"1.5px solid var(--danger-border)",
+          borderRadius:"var(--radius-md)",
+          padding:"1rem 1.25rem",
+          marginBottom:24,
+        }}>
+          <div style={{fontSize:"var(--fs-xs)",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.06em",color:"var(--danger-strong)",marginBottom:8}}>
+            ⚠️ Likely user-side issue
+          </div>
+          <div style={{fontSize:"var(--fs-base)",color:"var(--danger-text)",lineHeight:1.65}}>{note}</div>
         </div>
       );
     }
 
+    /* ============================================================
+       WARNING MODAL — with focus trapping
+       ============================================================ */
     function WarningModal({ step, onProceed, onChangeAnswer, onClose }) {
       const [reason, setReason] = useState("");
+      const dialogRef = useRef();
+      const firstBtnRef = useRef();
+
+      useEffect(() => {
+        if (firstBtnRef.current) firstBtnRef.current.focus();
+        const handleKey = e => { if (e.key === "Escape") onClose(); };
+        document.addEventListener("keydown", handleKey);
+        return () => document.removeEventListener("keydown", handleKey);
+      }, [onClose]);
+
       return (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,padding:"1rem"}} onClick={onClose}>
-          <div style={{background:"#fff",borderRadius:12,maxWidth:440,width:"100%",padding:"1.5rem",boxShadow:"0 20px 50px rgba(0,0,0,0.3)"}} onClick={e=>e.stopPropagation()}>
-            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#dc2626",marginBottom:8}}>⚠️ Likely the issue</div>
-            <div style={{fontSize:14,color:"#111827",lineHeight:1.6,marginBottom:14}}>{step.warning}</div>
-            <div style={{fontSize:12,color:"#6b7280",marginBottom:14,lineHeight:1.5}}>Have the advocate or physician test this before proceeding. If they have, change your answer below. Otherwise, provide a reason and continue.</div>
-            <div style={{marginBottom:12}}>
-              <label style={{fontSize:12,fontWeight:500,color:"#374151",display:"block",marginBottom:4}}>Reason for proceeding anyway</label>
-              <textarea value={reason} onChange={e=>setReason(e.target.value)} rows={2}
-                placeholder="e.g. Advocate already tested and confirms it doesn't help..."
-                style={{width:"100%",padding:"8px 10px",border:"1px solid #d1d5db",borderRadius:7,fontSize:13,fontFamily:"inherit",boxSizing:"border-box",outline:"none",resize:"vertical"}}/>
+        <div role="dialog" aria-modal="true" aria-labelledby="warning-title" style={{
+          position:"fixed",inset:0,
+          background:"rgba(16, 16, 16, 0.55)",
+          display:"flex",alignItems:"center",justifyContent:"center",
+          zIndex:100,padding:"1rem",
+          backdropFilter:"blur(2px)",
+        }} onClick={onClose}>
+          <div ref={dialogRef} style={{
+            background:"var(--surface-card)",
+            borderRadius:"var(--radius-lg)",
+            maxWidth:480,width:"100%",
+            padding:"1.75rem",
+            boxShadow:"var(--shadow-lg)",
+            border:"1.5px solid var(--border-subtle)",
+          }} onClick={e=>e.stopPropagation()}>
+            <div id="warning-title" style={{fontSize:"var(--fs-xs)",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.06em",color:"var(--danger-strong)",marginBottom:10}}>
+              ⚠️ Likely the issue
             </div>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              <button onClick={onChangeAnswer} style={{flex:"1 1 auto",padding:"9px 14px",border:"none",borderRadius:7,background:"#3b82f6",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+            <div style={{fontSize:"var(--fs-md)",color:"var(--text-primary)",lineHeight:1.6,marginBottom:18,fontWeight:500}}>
+              {step.warning}
+            </div>
+            <div style={{fontSize:"var(--fs-sm)",color:"var(--text-secondary)",marginBottom:18,lineHeight:1.6}}>
+              Have the advocate or physician test this before proceeding. If they have, change your answer below. Otherwise, provide a reason and continue.
+            </div>
+            <div style={{marginBottom:16}}>
+              <label htmlFor="proceed-reason" style={{fontSize:"var(--fs-sm)",fontWeight:700,color:"var(--text-secondary)",display:"block",marginBottom:6}}>
+                Reason for proceeding anyway
+              </label>
+              <textarea
+                id="proceed-reason"
+                value={reason}
+                onChange={e=>setReason(e.target.value)}
+                rows={3}
+                placeholder="e.g. Advocate already tested and confirms it doesn't help..."
+                style={{...baseInput, resize:"vertical"}}
+              />
+            </div>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              <Button ref={firstBtnRef} variant="primary" onClick={onChangeAnswer} style={{flex:"1 1 auto"}}>
                 They tested it — change my answer
-              </button>
-              <button onClick={()=>onProceed(reason)} disabled={!reason.trim()} style={{flex:"1 1 auto",padding:"9px 14px",border:"1px solid #d1d5db",borderRadius:7,background:reason.trim()?"#fff":"#f3f4f6",color:reason.trim()?"#111827":"#9ca3af",fontSize:13,cursor:reason.trim()?"pointer":"not-allowed",fontFamily:"inherit"}}>
+              </Button>
+              <Button onClick={()=>onProceed(reason)} disabled={!reason.trim()} style={{flex:"1 1 auto"}}>
                 Proceed with reason
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       );
     }
 
+    /* ============================================================
+       APP ROOT
+       ============================================================ */
     function App() {
       const [screen, setScreen]       = useState("category");
       const [cat, setCat]             = useState(null);
@@ -939,7 +1291,6 @@
             if (item.patient) extras.push(`Patient: ${item.patient}`);
             return extras.length > 0 ? `${item.datetime}\n${extras.join("\n")}` : item.datetime;
           }
-          // multi: try to infer label from whether any visitId exists in any slot
           const label = hasVisitIds ? "Visit" : "Call";
           return touched.map((item, i) => {
             const extras = [];
@@ -1019,202 +1370,432 @@
       const progress = screen === "category" ? 2 : screen === "done" ? 100 : Math.round((currentStep / totalSteps) * 93) + 4;
 
       const col = cat ? CAT_COLORS[cat] : null;
-      const pill = col && <span style={{display:"inline-block",padding:"3px 10px",borderRadius:6,fontSize:12,fontWeight:500,marginBottom:"1.25rem",background:col.bg,color:col.text,border:`1px solid ${col.border}`}}>{cat}</span>;
-      const backBtn = <button onClick={goBack} style={{fontSize:13,color:"#6b7280",background:"none",border:"none",cursor:"pointer",padding:0,marginBottom:"1.25rem",display:"block",fontFamily:"inherit"}}>← Back</button>;
-      const btn = (onClick, label, style={}) => <button onClick={onClick} style={{padding:"9px 18px",border:"1px solid #d1d5db",borderRadius:8,background:"#fff",color:"#111827",fontSize:14,cursor:"pointer",fontFamily:"inherit",...style}}>{label}</button>;
+
+      const Pill = () => col && (
+        <span style={{
+          display:"inline-flex",
+          alignItems:"center",
+          padding:"6px 14px",
+          borderRadius:"999px",
+          fontSize:"var(--fs-sm)",
+          fontWeight:700,
+          marginBottom:"1.5rem",
+          background:col.bg,
+          color:col.text,
+          border:`1.5px solid ${col.border}`,
+          letterSpacing:"0.01em",
+        }}>{cat}</span>
+      );
+
+      const BackBtn = () => (
+        <button onClick={goBack} style={{
+          fontSize:"var(--fs-sm)",
+          color:"var(--text-secondary)",
+          background:"none",
+          border:"none",
+          cursor:"pointer",
+          padding:"6px 10px 6px 0",
+          marginBottom:"1rem",
+          display:"inline-flex",
+          alignItems:"center",
+          gap:6,
+          fontFamily:"var(--font-body)",
+          fontWeight:700,
+          borderRadius:"var(--radius-sm)",
+        }}>
+          <span aria-hidden="true">←</span> Back
+        </button>
+      );
+
+      const StepLabel = ({ children }) => (
+        <div style={{
+          fontSize:"var(--fs-xs)",
+          fontWeight:900,
+          textTransform:"uppercase",
+          letterSpacing:"0.08em",
+          color:"var(--green-700)",
+          marginBottom:10,
+        }}>{children}</div>
+      );
+
+      const Question = ({ children }) => (
+        <h2 style={{
+          fontSize:"var(--fs-xl)",
+          fontWeight:700,
+          color:"var(--text-primary)",
+          lineHeight:1.35,
+          margin:"0 0 16px 0",
+          letterSpacing:"-0.01em",
+        }}>{children}</h2>
+      );
+
+      const Hint = ({ children }) => (
+        <div style={{
+          fontSize:"var(--fs-base)",
+          color:"var(--text-secondary)",
+          marginBottom:20,
+          lineHeight:1.6,
+        }}>{children}</div>
+      );
 
       const tsStep = ep?.troubleshoot[tsIdx];
 
       return (
-        <div style={{maxWidth:560,margin:"0 auto",padding:"1.5rem 1rem 6rem",fontFamily:"system-ui,-apple-system,sans-serif",position:"relative",minHeight:"100vh"}}>
+        <div style={{position:"relative",minHeight:"100vh",zIndex:1}}>
 
-          <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#fef3c7",borderTop:"1px solid #fbbf24",padding:"8px 16px",textAlign:"center",fontSize:12,color:"#78350f",fontWeight:500,zIndex:50}}>
-            ⚠️ Do not enter PHI
-          </div>
-
-          <div style={{height:3,background:"#e5e7eb",borderRadius:2,marginBottom:"2rem"}}>
-            <div style={{height:3,background:"#3b82f6",borderRadius:2,width:`${progress}%`,transition:"width 0.3s"}}/>
-          </div>
-
-          {showWarning && tsStep && (
-            <WarningModal step={tsStep} onProceed={modalProceed} onChangeAnswer={modalChangeAnswer} onClose={modalChangeAnswer} />
-          )}
-
-          {screen === "category" && (
-            <div>
-              <div style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",color:"#9ca3af",marginBottom:6}}>Step 1</div>
-              <div style={{fontSize:18,fontWeight:600,color:"#111827",marginBottom:16}}>What type of issue is this?</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>{CATEGORIES.map(c => btn(() => startCat(c), c))}</div>
-            </div>
-          )}
-
-          {screen === "branch" && visibleBranches[branchIdx] && (
-            <div>
-              {backBtn}{pill}
-              <div style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",color:"#9ca3af",marginBottom:6}}>
-                Question {branchIdx + 1} of {visibleBranches.length}
-              </div>
-              <div style={{fontSize:18,fontWeight:600,color:"#111827",marginBottom:visibleBranches[branchIdx].hint?6:16,lineHeight:1.4}}>{visibleBranches[branchIdx].q}</div>
-              {visibleBranches[branchIdx].hint && <div style={{fontSize:13,color:"#6b7280",marginBottom:14,lineHeight:1.5}}>{visibleBranches[branchIdx].hint}</div>}
-              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                {visibleBranches[branchIdx].opts.map(o => btn(() => pickBranch(visibleBranches[branchIdx].key, o), o))}
+          {/* Header bar */}
+          <header style={{
+            background:"var(--surface-card)",
+            borderBottom:"1.5px solid var(--border-subtle)",
+            padding:"16px 24px",
+            position:"sticky",
+            top:0,
+            zIndex:30,
+            boxShadow:"var(--shadow-sm)",
+          }}>
+            <div style={{maxWidth:680,margin:"0 auto",display:"flex",alignItems:"center",gap:12}}>
+              {/* Solace mark — minimal SVG, brand green */}
+              <div style={{
+                width:32, height:32,
+                borderRadius:"50%",
+                background:"linear-gradient(135deg, var(--green-700) 0%, var(--green-900) 100%)",
+                display:"flex",
+                alignItems:"center",
+                justifyContent:"center",
+                color:"var(--eggshell)",
+                fontWeight:900,
+                fontSize:14,
+                fontFamily:"Georgia, 'Times New Roman', serif",
+                letterSpacing:"-0.02em",
+              }}>S</div>
+              <div style={{lineHeight:1.2}}>
+                <div style={{fontSize:"var(--fs-md)",fontWeight:900,color:"var(--green-900)",letterSpacing:"-0.01em"}}>Solace · CX Ticket Builder</div>
+                <div style={{fontSize:"var(--fs-xs)",color:"var(--text-tertiary)",fontWeight:500}}>Communications Issues — Decision Tree</div>
               </div>
             </div>
-          )}
+          </header>
 
-          {screen === "guidance" && guidanceKey && GUIDANCE[guidanceKey] && (() => {
-            const g = GUIDANCE[guidanceKey];
-            return (
-              <div>
-                {backBtn}{pill}
-                <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"1.25rem",marginBottom:16}}>
-                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#b45309",marginBottom:6}}>🔧 Troubleshooting guidance</div>
-                  <div style={{fontSize:18,fontWeight:600,color:"#78350f",marginBottom:4,lineHeight:1.3}}>{g.title}</div>
-                  <div style={{fontSize:13,color:"#92400e",fontStyle:"italic",marginBottom:12}}>{g.severity}</div>
-                  <div style={{fontSize:13,color:"#78350f",lineHeight:1.6,marginBottom:14}}>{g.description}</div>
-                  <div style={{fontSize:12,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",color:"#b45309",marginBottom:8}}>Recommended steps</div>
-                  <ol style={{margin:0,paddingLeft:20,fontSize:13,color:"#78350f",lineHeight:1.7}}>
-                    {g.steps.map((s,i) => <li key={i} style={{marginBottom:4}}>{s}</li>)}
-                  </ol>
-                  {g.note && (
-                    <div style={{marginTop:14,padding:"10px 12px",background:"#fef3c7",borderRadius:7,fontSize:12,color:"#78350f",lineHeight:1.5}}>
-                      <strong>Note:</strong> {g.note}
+          <main style={{maxWidth:680,margin:"0 auto",padding:"1.75rem 1.25rem 7rem"}}>
+
+            {/* Progress bar */}
+            <div role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Ticket progress" style={{height:6,background:"var(--marble)",borderRadius:3,marginBottom:"2rem",overflow:"hidden"}}>
+              <div style={{
+                height:"100%",
+                background:"linear-gradient(90deg, var(--green-600) 0%, var(--green-800) 100%)",
+                borderRadius:3,
+                width:`${progress}%`,
+                transition:"width 0.35s ease",
+              }}/>
+            </div>
+
+            {/* PHI warning — fixed bottom banner */}
+            <div role="alert" aria-live="polite" style={{
+              position:"fixed",
+              bottom:0,left:0,right:0,
+              background:"var(--warning-bg)",
+              borderTop:"2px solid var(--warning-strong)",
+              padding:"12px 20px",
+              textAlign:"center",
+              fontSize:"var(--fs-sm)",
+              color:"var(--warning-text)",
+              fontWeight:700,
+              zIndex:50,
+              boxShadow:"0 -2px 8px rgba(29,67,57,0.08)",
+            }}>
+              ⚠️ Do not enter PHI · Reference patients by ID only
+            </div>
+
+            {showWarning && tsStep && (
+              <WarningModal step={tsStep} onProceed={modalProceed} onChangeAnswer={modalChangeAnswer} onClose={modalChangeAnswer} />
+            )}
+
+            {/* SCREEN: Category */}
+            {screen === "category" && (
+              <section aria-labelledby="screen-category">
+                <StepLabel>Step 1 of 4</StepLabel>
+                <h1 id="screen-category" style={{
+                  fontSize:"var(--fs-2xl)",
+                  fontWeight:900,
+                  color:"var(--green-900)",
+                  margin:"0 0 8px 0",
+                  letterSpacing:"-0.02em",
+                  lineHeight:1.2,
+                }}>What type of issue is this?</h1>
+                <Hint>Choose the surface area where the advocate or physician is seeing the problem.</Hint>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))",gap:12}}>
+                  {CATEGORIES.map(c => {
+                    const cc = CAT_COLORS[c];
+                    return (
+                      <button
+                        key={c}
+                        onClick={() => startCat(c)}
+                        style={{
+                          padding:"20px 18px",
+                          textAlign:"left",
+                          border:`1.5px solid ${cc.border}`,
+                          borderRadius:"var(--radius-md)",
+                          background:cc.bg,
+                          color:cc.text,
+                          fontSize:"var(--fs-md)",
+                          fontWeight:700,
+                          cursor:"pointer",
+                          fontFamily:"var(--font-body)",
+                          transition:"transform 0.1s ease, box-shadow 0.15s ease",
+                          minHeight:64,
+                          boxShadow:"var(--shadow-sm)",
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-md)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "var(--shadow-sm)"; }}
+                      >{c}</button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* SCREEN: Branch question */}
+            {screen === "branch" && visibleBranches[branchIdx] && (
+              <section aria-live="polite">
+                <BackBtn />
+                <Pill />
+                <StepLabel>Question {branchIdx + 1} of {visibleBranches.length}</StepLabel>
+                <Question>{visibleBranches[branchIdx].q}</Question>
+                {visibleBranches[branchIdx].hint && <Hint>{visibleBranches[branchIdx].hint}</Hint>}
+                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                  {visibleBranches[branchIdx].opts.map(o =>
+                    <Button key={o} onClick={() => pickBranch(visibleBranches[branchIdx].key, o)} style={{textAlign:"left",justifyContent:"flex-start",padding:"16px 20px"}}>{o}</Button>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* SCREEN: Twilio guidance */}
+            {screen === "guidance" && guidanceKey && GUIDANCE[guidanceKey] && (() => {
+              const g = GUIDANCE[guidanceKey];
+              return (
+                <section aria-live="polite">
+                  <BackBtn />
+                  <Pill />
+                  <div style={{
+                    background:"var(--warning-bg)",
+                    border:"1.5px solid var(--warning-border)",
+                    borderRadius:"var(--radius-lg)",
+                    padding:"1.5rem",
+                    marginBottom:20,
+                  }}>
+                    <div style={{fontSize:"var(--fs-xs)",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.06em",color:"var(--warning-strong)",marginBottom:10}}>
+                      🔧 Troubleshooting guidance
                     </div>
-                  )}
-                </div>
-                <div style={{fontSize:13,color:"#6b7280",marginBottom:12,lineHeight:1.5}}>If the advocate hasn't completed these steps yet, have them try first. If they've tried and the issue persists, continue to log a ticket.</div>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <button onClick={continueFromGuidance} style={{padding:"10px 22px",border:"none",borderRadius:8,background:"#3b82f6",color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Continue to ticket →</button>
-                  <button onClick={reset} style={{padding:"10px 22px",border:"1px solid #d1d5db",borderRadius:8,background:"#fff",color:"#374151",fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>Cancel — no ticket needed</button>
-                </div>
-              </div>
-            );
-          })()}
-
-          {screen === "troubleshoot" && tsStep && (
-            <div>
-              {backBtn}{pill}
-              {ep.userError && <UserErrorBanner note={ep.userErrorNote} />}
-              <div style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",color:"#9ca3af",marginBottom:6}}>
-                Troubleshooting {tsIdx + 1} of {ep.troubleshoot.length}
-              </div>
-              <div style={{fontSize:17,fontWeight:600,color:"#111827",marginBottom:14,lineHeight:1.4}}>{tsStep.q}</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                {btn(() => pickTsAnswer("Yes"), "Yes")}
-                {btn(() => pickTsAnswer("No"), "No")}
-                {btn(() => pickTsAnswer("Unknown"), "Unknown")}
-                {tsStep.satisfyOn.includes("All") && btn(() => pickTsAnswer("All"), "All")}
-                {tsStep.satisfyOn.includes("N/A") && btn(() => pickTsAnswer("N/A"), "N/A")}
-                {tsStep.q.toLowerCase().includes("all patients") && btn(() => pickTsAnswer("Just one"), "Just one")}
-              </div>
-            </div>
-          )}
-
-          {screen === "escalate" && ep && (
-            <div>
-              {backBtn}{pill}
-              <div style={{fontSize:17,fontWeight:600,color:"#111827",marginBottom:4}}>Ticket details</div>
-              <div style={{fontSize:13,color:"#6b7280",marginBottom:20}}>Fill in what the guide requires for this issue type. All fields optional.</div>
-
-              <div style={{marginBottom:16}}>
-                <label style={{display:"block",fontSize:13,fontWeight:500,color:"#374151",marginBottom:4}}>Ticket title</label>
-                <div style={{fontSize:12,color:"#9ca3af",marginBottom:5,lineHeight:1.5}}>Override the auto-generated title. Leave blank to use the default.</div>
-                <input type="text" value={escVals.__customTitle||""} onChange={e=>setEsc("__customTitle", e.target.value)}
-                  placeholder={ep.title(Object.fromEntries(ep.escalate.map(f => [f.key, getEscText(f.key)])))}
-                  style={{width:"100%",padding:"9px 11px",border:"1px solid #d1d5db",borderRadius:8,fontSize:14,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
-              </div>
-
-              {ep.escalate.map(f => (
-                <div key={f.key} style={{marginBottom:16}}>
-                  <label style={{display:"block",fontSize:13,fontWeight:500,color:"#374151",marginBottom:4}}>{f.label}</label>
-                  {f.hint && <div style={{fontSize:12,color:"#9ca3af",marginBottom:5,lineHeight:1.5}}>{f.hint}</div>}
-                  {f.type === "textarea" && (
-                    <div style={{fontSize:11,color:"#b45309",marginBottom:5,lineHeight:1.4,padding:"4px 8px",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:5}}>
-                      ⚠️ Do not enter PHI. Reference the patient by ID only.
+                    <h2 style={{fontSize:"var(--fs-xl)",fontWeight:900,color:"var(--warning-text)",margin:"0 0 6px 0",lineHeight:1.3,letterSpacing:"-0.01em"}}>{g.title}</h2>
+                    <div style={{fontSize:"var(--fs-base)",color:"var(--warning-text)",fontStyle:"italic",marginBottom:16,opacity:0.85}}>{g.severity}</div>
+                    <div style={{fontSize:"var(--fs-base)",color:"var(--warning-text)",lineHeight:1.65,marginBottom:18}}>{g.description}</div>
+                    <div style={{fontSize:"var(--fs-xs)",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.06em",color:"var(--warning-strong)",marginBottom:10}}>
+                      Recommended steps
                     </div>
-                  )}
-                  {f.type === "text" && (
-                    <>
-                      <input type="text" value={escVals[f.key]||""} onChange={e=>setEsc(f.key, e.target.value)}
-                        style={{width:"100%",padding:"9px 11px",border:"1px solid #d1d5db",borderRadius:8,fontSize:14,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
-                      {f.key === "errCode" && <FaxCodeAdvisory code={escVals[f.key]} />}
-                    </>
-                  )}
-                  {f.type === "textarea" && (
-                    <textarea value={escVals[f.key]||""} onChange={e=>setEsc(f.key, e.target.value)} rows={3}
-                      style={{width:"100%",padding:"9px 11px",border:"1px solid #d1d5db",borderRadius:8,fontSize:14,fontFamily:"inherit",boxSizing:"border-box",outline:"none",resize:"vertical"}}/>
-                  )}
-                  {f.type === "datetime" && <DateTimeInput value={escVals[f.key]||""} onChange={v=>setEsc(f.key, v)}/>}
-                  {f.type === "datetime_multi" && <MultiDateTimeInput value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)}/>}
-                  {f.type === "datetime_multi_visit" && <MultiDateTimeInput value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)} withVisitId={true}/>}
-                  {f.type === "screenshot" && <ScreenshotField value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)}/>}
-                </div>
-              ))}
+                    <ol style={{margin:0,paddingLeft:24,fontSize:"var(--fs-base)",color:"var(--warning-text)",lineHeight:1.75}}>
+                      {g.steps.map((s,i) => <li key={i} style={{marginBottom:6}}>{s}</li>)}
+                    </ol>
+                    {g.note && (
+                      <div style={{
+                        marginTop:18,
+                        padding:"14px 16px",
+                        background:"var(--miel)",
+                        borderRadius:"var(--radius-md)",
+                        fontSize:"var(--fs-sm)",
+                        color:"var(--warning-text)",
+                        lineHeight:1.6,
+                      }}>
+                        <strong style={{fontWeight:900}}>Note:</strong> {g.note}
+                      </div>
+                    )}
+                  </div>
+                  <Hint>If the advocate hasn't completed these steps yet, have them try first. If they've tried and the issue persists, continue to log a ticket.</Hint>
+                  <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                    <Button variant="primary" onClick={continueFromGuidance}>Continue to ticket →</Button>
+                    <Button onClick={reset}>Cancel — no ticket needed</Button>
+                  </div>
+                </section>
+              );
+            })()}
 
-              <div style={{marginBottom:16}}>
-                <label style={{display:"block",fontSize:13,fontWeight:500,color:"#374151",marginBottom:4}}>Screenshots</label>
-                <div style={{fontSize:12,color:"#9ca3af",marginBottom:5,lineHeight:1.5}}>Attach any screenshots that may help engineering (UI, error messages, etc.)</div>
-                {(escVals.__extraShots || []).map((s, i) => (
-                  <div key={i} style={{marginBottom:8,border:"1px solid #e5e7eb",borderRadius:8,padding:8,background:"#f9fafb"}}>
-                    <ScreenshotField value={s} onChange={v => {
-                      const arr = [...(escVals.__extraShots || [])];
-                      if (v === null) arr.splice(i, 1);
-                      else arr[i] = v;
-                      setEsc("__extraShots", arr);
-                    }} />
+            {/* SCREEN: Troubleshoot */}
+            {screen === "troubleshoot" && tsStep && (
+              <section aria-live="polite">
+                <BackBtn />
+                <Pill />
+                {ep.userError && <UserErrorBanner note={ep.userErrorNote} />}
+                <StepLabel>Troubleshooting {tsIdx + 1} of {ep.troubleshoot.length}</StepLabel>
+                <Question>{tsStep.q}</Question>
+                <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+                  <Button variant="secondary" onClick={() => pickTsAnswer("Yes")}>Yes</Button>
+                  <Button onClick={() => pickTsAnswer("No")}>No</Button>
+                  <Button onClick={() => pickTsAnswer("Unknown")}>Unknown</Button>
+                  {tsStep.satisfyOn.includes("All") && <Button variant="secondary" onClick={() => pickTsAnswer("All")}>All</Button>}
+                  {tsStep.satisfyOn.includes("N/A") && <Button onClick={() => pickTsAnswer("N/A")}>N/A</Button>}
+                  {tsStep.q.toLowerCase().includes("all patients") && <Button onClick={() => pickTsAnswer("Just one")}>Just one</Button>}
+                </div>
+              </section>
+            )}
+
+            {/* SCREEN: Escalate / form */}
+            {screen === "escalate" && ep && (
+              <section>
+                <BackBtn />
+                <Pill />
+                <h2 style={{fontSize:"var(--fs-xl)",fontWeight:900,color:"var(--green-900)",margin:"0 0 6px 0",letterSpacing:"-0.01em",lineHeight:1.25}}>Ticket details</h2>
+                <Hint>Fill in what the guide requires for this issue type. All fields optional.</Hint>
+
+                <div style={{marginBottom:20}}>
+                  <label htmlFor="ticket-title" style={{display:"block",fontSize:"var(--fs-base)",fontWeight:700,color:"var(--text-primary)",marginBottom:6}}>Ticket title</label>
+                  <div style={{fontSize:"var(--fs-sm)",color:"var(--text-tertiary)",marginBottom:8,lineHeight:1.5}}>Override the auto-generated title. Leave blank to use the default.</div>
+                  <input
+                    id="ticket-title"
+                    type="text"
+                    value={escVals.__customTitle || ""}
+                    onChange={e=>setEsc("__customTitle", e.target.value)}
+                    placeholder={ep.title(Object.fromEntries(ep.escalate.map(f => [f.key, getEscText(f.key)])))}
+                    style={baseInput}
+                  />
+                </div>
+
+                {ep.escalate.map(f => (
+                  <div key={f.key} style={{marginBottom:20}}>
+                    <label htmlFor={`field-${f.key}`} style={{display:"block",fontSize:"var(--fs-base)",fontWeight:700,color:"var(--text-primary)",marginBottom:6}}>{f.label}</label>
+                    {f.hint && <div style={{fontSize:"var(--fs-sm)",color:"var(--text-tertiary)",marginBottom:8,lineHeight:1.5}}>{f.hint}</div>}
+                    {f.type === "textarea" && (
+                      <div role="note" style={{
+                        fontSize:"var(--fs-sm)",
+                        color:"var(--warning-text)",
+                        marginBottom:8,
+                        lineHeight:1.5,
+                        padding:"8px 12px",
+                        background:"var(--warning-bg)",
+                        border:"1.5px solid var(--warning-border)",
+                        borderRadius:"var(--radius-sm)",
+                        fontWeight:500,
+                      }}>
+                        ⚠️ Do not enter PHI. Reference the patient by ID only.
+                      </div>
+                    )}
+                    {f.type === "text" && (
+                      <>
+                        <input id={`field-${f.key}`} type="text" value={escVals[f.key]||""} onChange={e=>setEsc(f.key, e.target.value)} style={baseInput}/>
+                        {f.key === "errCode" && <FaxCodeAdvisory code={escVals[f.key]} />}
+                      </>
+                    )}
+                    {f.type === "textarea" && (
+                      <textarea id={`field-${f.key}`} value={escVals[f.key]||""} onChange={e=>setEsc(f.key, e.target.value)} rows={4} style={{...baseInput, resize:"vertical"}}/>
+                    )}
+                    {f.type === "datetime" && <DateTimeInput value={escVals[f.key]||""} onChange={v=>setEsc(f.key, v)}/>}
+                    {f.type === "datetime_multi" && <MultiDateTimeInput value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)}/>}
+                    {f.type === "datetime_multi_visit" && <MultiDateTimeInput value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)} withVisitId={true}/>}
+                    {f.type === "screenshot" && <ScreenshotField value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)}/>}
                   </div>
                 ))}
-                <button onClick={() => {
-                  const arr = [...(escVals.__extraShots || []), null];
-                  setEsc("__extraShots", arr);
-                }} style={{padding:"7px 14px",border:"1px dashed #d1d5db",borderRadius:8,background:"#fff",color:"#374151",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-                  + Add screenshot
-                </button>
-              </div>
 
-              <button onClick={()=>setScreen("done")} style={{marginTop:8,padding:"10px 24px",border:"none",borderRadius:8,background:"#3b82f6",color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                Generate ticket →
-              </button>
-            </div>
-          )}
+                <div style={{marginBottom:20}}>
+                  <label style={{display:"block",fontSize:"var(--fs-base)",fontWeight:700,color:"var(--text-primary)",marginBottom:6}}>Screenshots</label>
+                  <div style={{fontSize:"var(--fs-sm)",color:"var(--text-tertiary)",marginBottom:8,lineHeight:1.5}}>Attach any screenshots that may help engineering (UI, error messages, etc.)</div>
+                  {(escVals.__extraShots || []).map((s, i) => (
+                    <div key={i} style={{marginBottom:10,border:"1.5px solid var(--border-subtle)",borderRadius:"var(--radius-md)",padding:10,background:"var(--surface-sunken)"}}>
+                      <ScreenshotField value={s} onChange={v => {
+                        const arr = [...(escVals.__extraShots || [])];
+                        if (v === null) arr.splice(i, 1);
+                        else arr[i] = v;
+                        setEsc("__extraShots", arr);
+                      }} />
+                    </div>
+                  ))}
+                  <button onClick={() => {
+                    const arr = [...(escVals.__extraShots || []), null];
+                    setEsc("__extraShots", arr);
+                  }} style={{
+                    padding:"10px 16px",
+                    border:"1.5px dashed var(--border-strong)",
+                    borderRadius:"var(--radius-md)",
+                    background:"var(--surface-card)",
+                    color:"var(--text-secondary)",
+                    fontSize:"var(--fs-sm)",
+                    fontWeight:700,
+                    cursor:"pointer",
+                    fontFamily:"var(--font-body)",
+                  }}>+ Add screenshot</button>
+                </div>
 
-          {screen === "done" && ep && (
-            <div>
-              <div style={{marginBottom:"1rem"}}>
-                <div style={{fontSize:17,fontWeight:600,color:"#111827",marginBottom:4}}>✓ Ticket ready</div>
-                <div style={{fontSize:13,color:"#6b7280"}}>Title: <strong>{getTitle()}</strong></div>
-                <div style={{fontSize:13,color:"#6b7280",marginTop:2}}>Paste into the Linear description.</div>
-              </div>
+                <Button variant="primary" onClick={() => setScreen("done")} style={{marginTop:12}}>
+                  Generate ticket →
+                </Button>
+              </section>
+            )}
 
-              <div style={{background:"#f9fafb",borderRadius:10,border:"1px solid #e5e7eb",padding:"1.25rem",fontFamily:"ui-monospace,monospace",fontSize:12,color:"#111827",whiteSpace:"pre-wrap",lineHeight:1.7,maxHeight:380,overflowY:"auto"}}>
-                {buildTicket()}
-              </div>
-
-              <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap",alignItems:"center"}}>
-                {btn(copyTicket, copied ? "✓ Copied!" : copyError ? "Copy failed — select text above" : "Copy to clipboard", copyError ? {borderColor:"#ef4444",color:"#ef4444"} : {})}
-                {btn(reset, "Start a new ticket")}
-              </div>
-
-              {(() => {
-                const shots = ep.escalate.filter(f => f.type === "screenshot" && escVals[f.key]?.dataUrl).map(f => ({label: f.label, ...escVals[f.key]}));
-                const extras = (escVals.__extraShots || []).filter(s => s?.dataUrl).map((s, i) => ({label: `Screenshot ${i+1}`, ...s}));
-                const allShots = [...shots, ...extras];
-                if (allShots.length === 0) return null;
-                return (
-                  <div style={{marginTop:24}}>
-                    <div style={{fontSize:13,fontWeight:600,color:"#374151",marginBottom:10}}>📎 Attached screenshots — drag into Linear</div>
-                    {allShots.map((s,i) => (
-                      <div key={i} style={{border:"1px solid #e5e7eb",borderRadius:10,overflow:"hidden",background:"#f9fafb",marginBottom:12}}>
-                        <div style={{padding:"8px 12px",fontSize:12,color:"#6b7280",borderBottom:"1px solid #e5e7eb"}}>{s.label}</div>
-                        <img src={s.dataUrl} alt={s.name} style={{width:"100%",display:"block",maxHeight:250,objectFit:"contain",background:"#fff"}}/>
-                        <div style={{padding:"6px 12px",fontSize:11,color:"#9ca3af"}}>{s.name}</div>
-                      </div>
-                    ))}
+            {/* SCREEN: Done */}
+            {screen === "done" && ep && (
+              <section aria-live="polite">
+                <div style={{marginBottom:"1.25rem"}}>
+                  <div style={{
+                    display:"inline-flex",
+                    alignItems:"center",
+                    gap:8,
+                    padding:"6px 14px",
+                    borderRadius:"999px",
+                    background:"var(--green-200)",
+                    color:"var(--green-900)",
+                    border:"1.5px solid var(--green-400)",
+                    fontSize:"var(--fs-sm)",
+                    fontWeight:700,
+                    marginBottom:12,
+                  }}>✓ Ticket ready</div>
+                  <div style={{fontSize:"var(--fs-base)",color:"var(--text-secondary)",lineHeight:1.6}}>
+                    Title: <strong style={{color:"var(--text-primary)",fontWeight:900}}>{getTitle()}</strong>
                   </div>
-                );
-              })()}
-            </div>
-          )}
+                  <div style={{fontSize:"var(--fs-sm)",color:"var(--text-tertiary)",marginTop:4}}>Paste into the Linear description.</div>
+                </div>
+
+                <div style={{
+                  background:"var(--surface-sunken)",
+                  borderRadius:"var(--radius-lg)",
+                  border:"1.5px solid var(--border-subtle)",
+                  padding:"1.5rem",
+                  fontFamily:"var(--font-mono)",
+                  fontSize:"var(--fs-sm)",
+                  color:"var(--text-primary)",
+                  whiteSpace:"pre-wrap",
+                  lineHeight:1.7,
+                  maxHeight:440,
+                  overflowY:"auto",
+                  boxShadow:"inset 0 1px 0 rgba(255,255,255,0.5)",
+                }}>
+                  {buildTicket()}
+                </div>
+
+                <div style={{display:"flex",gap:10,marginTop:16,flexWrap:"wrap",alignItems:"center"}}>
+                  <Button variant="primary" onClick={copyTicket} style={copyError ? {background:"var(--danger-strong)",borderColor:"var(--danger-strong)"} : {}}>
+                    {copied ? "✓ Copied!" : copyError ? "Copy failed — select text above" : "Copy to clipboard"}
+                  </Button>
+                  <Button onClick={reset}>Start a new ticket</Button>
+                </div>
+
+                {(() => {
+                  const shots = ep.escalate.filter(f => f.type === "screenshot" && escVals[f.key]?.dataUrl).map(f => ({label: f.label, ...escVals[f.key]}));
+                  const extras = (escVals.__extraShots || []).filter(s => s?.dataUrl).map((s, i) => ({label: `Screenshot ${i+1}`, ...s}));
+                  const allShots = [...shots, ...extras];
+                  if (allShots.length === 0) return null;
+                  return (
+                    <div style={{marginTop:28}}>
+                      <div style={{fontSize:"var(--fs-base)",fontWeight:900,color:"var(--text-primary)",marginBottom:12}}>📎 Attached screenshots — drag into Linear</div>
+                      {allShots.map((s,i) => (
+                        <div key={i} style={{border:"1.5px solid var(--border-subtle)",borderRadius:"var(--radius-md)",overflow:"hidden",background:"var(--surface-card)",marginBottom:14,boxShadow:"var(--shadow-sm)"}}>
+                          <div style={{padding:"10px 14px",fontSize:"var(--fs-sm)",color:"var(--text-secondary)",borderBottom:"1.5px solid var(--border-subtle)",fontWeight:700,background:"var(--surface-sunken)"}}>{s.label}</div>
+                          <img src={s.dataUrl} alt={s.name} style={{width:"100%",display:"block",maxHeight:300,objectFit:"contain",background:"var(--eggshell)"}}/>
+                          <div style={{padding:"8px 14px",fontSize:"var(--fs-sm)",color:"var(--text-tertiary)"}}>{s.name}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </section>
+            )}
+          </main>
         </div>
       );
     }
