@@ -15,7 +15,7 @@
 <body>
   <div id="root"></div>
   <script type="text/babel" data-presets="env,react">
-    const { useState, useRef, useEffect } = React;
+    const { useState, useRef } = React;
 
     const CAT_COLORS = {
       "Phone Call": { bg: "#e6f1fb", text: "#185fa5", border: "#b5d4f4" },
@@ -947,10 +947,11 @@
         if (!v) return "";
         if (typeof v === "string") return v;
         if (Array.isArray(v)) {
-          // datetime_multi format
-          if (v.length === 0) return "";
-          if (v.length === 1) return v[0].datetime || "";
-          return v.map((item, i) => `Call ${i+1}: ${item.datetime || "—"}${item.patient ? ` (Patient: ${item.patient})` : ""}`).join("\n");
+          // datetime_multi format — only include items the user actually touched
+          const touched = v.filter(item => item.touched && item.datetime);
+          if (touched.length === 0) return "";
+          if (touched.length === 1) return touched[0].datetime;
+          return touched.map((item, i) => `Call ${i+1}: ${item.datetime}${item.patient ? ` (Patient: ${item.patient})` : ""}`).join("\n");
         }
         return v.text || "";
       }
