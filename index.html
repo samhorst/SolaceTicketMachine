@@ -638,15 +638,22 @@
     }
 
     function MultiDateTimeInput({ value, onChange }) {
-      // value: array of { datetime: string, patient: string }
-      const list = Array.isArray(value) ? value : [{ datetime: "", patient: "" }];
+      const list = Array.isArray(value) && value.length > 0 ? value : [{ datetime: "", patient: "" }];
       const multi = list.length > 1;
 
       const updateItem = (i, key, v) => {
         const next = list.map((it, idx) => idx === i ? { ...it, [key]: v } : it);
         onChange(next);
       };
-      const addItem = () => onChange([...list, { datetime: "", patient: "" }]);
+      const addItem = () => {
+        // Initialize new slot with current datetime so it's never empty
+        const now = new Date();
+        const pad = n => String(n).padStart(2,"0");
+        const d = `${pad(now.getMonth()+1)}/${pad(now.getDate())}/${now.getFullYear()}`;
+        let h = now.getHours(), m = now.getMinutes(), ap = h>=12?"PM":"AM"; h = h%12||12;
+        const t = `${pad(h)}:${pad(m)} ${ap}`;
+        onChange([...list, { datetime: `${d} at ${t} ET`, patient: "" }]);
+      };
       const removeItem = (i) => {
         const next = list.filter((_, idx) => idx !== i);
         onChange(next.length ? next : [{ datetime: "", patient: "" }]);
@@ -931,10 +938,9 @@
         if (typeof v === "string") return v;
         if (Array.isArray(v)) {
           // datetime_multi format
-          const valid = v.filter(item => item.datetime);
-          if (valid.length === 0) return "";
-          if (valid.length === 1) return valid[0].datetime;
-          return valid.map((item, i) => `Call ${i+1}: ${item.datetime}${item.patient ? ` (Patient: ${item.patient})` : ""}`).join("\n");
+          if (v.length === 0) return "";
+          if (v.length === 1) return v[0].datetime || "";
+          return v.map((item, i) => `Call ${i+1}: ${item.datetime || "—"}${item.patient ? ` (Patient: ${item.patient})` : ""}`).join("\n");
         }
         return v.text || "";
       }
