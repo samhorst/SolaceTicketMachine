@@ -15,7 +15,7 @@
 <body>
   <div id="root"></div>
   <script type="text/babel" data-presets="env,react">
-    const { useState, useRef } = React;
+    const { useState, useRef, useEffect } = React;
 
     const CAT_COLORS = {
       "Phone Call": { bg: "#e6f1fb", text: "#185fa5", border: "#b5d4f4" },
@@ -638,25 +638,35 @@
     }
 
     function MultiDateTimeInput({ value, onChange }) {
-      const list = Array.isArray(value) && value.length > 0 ? value : [{ datetime: "", patient: "" }];
+      const nowStr = () => {
+        const now = new Date();
+        const pad = n => String(n).padStart(2,"0");
+        const d = `${pad(now.getMonth()+1)}/${pad(now.getDate())}/${now.getFullYear()}`;
+        let h = now.getHours(), m = now.getMinutes(), ap = h>=12?"PM":"AM"; h = h%12||12;
+        return `${d} at ${pad(h)}:${pad(m)} ${ap} ET`;
+      };
+
+      // Initialize default first slot with current datetime so it never starts empty
+      const list = Array.isArray(value) && value.length > 0 ? value : [{ datetime: nowStr(), patient: "" }];
       const multi = list.length > 1;
+
+      // If we just initialized a default, push it up so it persists in state
+      useEffect(() => {
+        if (!value || !Array.isArray(value) || value.length === 0) {
+          onChange(list);
+        }
+      }, []);
 
       const updateItem = (i, key, v) => {
         const next = list.map((it, idx) => idx === i ? { ...it, [key]: v } : it);
         onChange(next);
       };
       const addItem = () => {
-        // Initialize new slot with current datetime so it's never empty
-        const now = new Date();
-        const pad = n => String(n).padStart(2,"0");
-        const d = `${pad(now.getMonth()+1)}/${pad(now.getDate())}/${now.getFullYear()}`;
-        let h = now.getHours(), m = now.getMinutes(), ap = h>=12?"PM":"AM"; h = h%12||12;
-        const t = `${pad(h)}:${pad(m)} ${ap}`;
-        onChange([...list, { datetime: `${d} at ${t} ET`, patient: "" }]);
+        onChange([...list, { datetime: nowStr(), patient: "" }]);
       };
       const removeItem = (i) => {
         const next = list.filter((_, idx) => idx !== i);
-        onChange(next.length ? next : [{ datetime: "", patient: "" }]);
+        onChange(next.length ? next : [{ datetime: nowStr(), patient: "" }]);
       };
 
       return (
