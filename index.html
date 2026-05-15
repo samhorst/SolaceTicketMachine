@@ -243,12 +243,12 @@
           { key: "advocate", label: "Advocate / physician name", type: "text" },
           { key: "patient",  label: "Patient ID(s)", type: "text" },
           { key: "visitId",  label: "Visit ID", type: "text", hint: "Pull from admin URL after \"visitid=\"" },
-          { key: "datetime", label: "Visit timestamp (with timezone)", type: "datetime" },
+          { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
           { key: "browser",  label: "Browser", type: "text" },
           { key: "device",   label: "Advocate device", type: "text" },
           { key: "freq",     label: "Frequency", type: "text", hint: "Consistent / Intermittent" },
-          { key: "jam",      label: "Jam link or screenshot", type: "screenshot" },
-          { key: "notes",    label: "Additional notes", type: "textarea" },
+          { key: "whoAffected", label: "One / Some / All patients?", type: "text" },
+          { key: "notes",    label: "Additional notes / Jam links", type: "textarea" },
         ],
         title: () => "CX RQ — [Video Visit | BUG]",
         summary: () => `Advocate/physician video not showing. All troubleshooting performed; escalating with visit ID for engineering.`,
@@ -266,12 +266,12 @@
           { key: "advocate", label: "Advocate name", type: "text" },
           { key: "patient",  label: "Patient ID(s)", type: "text" },
           { key: "visitId",  label: "Visit ID", type: "text", hint: "Pull from admin URL after \"visitid=\"" },
-          { key: "datetime", label: "Visit timestamp (with timezone)", type: "datetime" },
+          { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
           { key: "browser",  label: "Browser", type: "text" },
           { key: "os",       label: "OS", type: "text" },
           { key: "freq",     label: "Frequency", type: "text" },
-          { key: "jam",      label: "Jam link or screenshot", type: "screenshot" },
-          { key: "notes",    label: "Additional notes", type: "textarea" },
+          { key: "whoAffected", label: "One / Some / All patients?", type: "text" },
+          { key: "notes",    label: "Additional notes / Jam links", type: "textarea" },
         ],
         title: () => "CX RQ — [Video Visit | BUG]",
         summary: () => `Advocate/physician audio not working in video visit. All troubleshooting performed.`,
@@ -288,12 +288,13 @@
           { key: "advocate",  label: "Advocate name", type: "text" },
           { key: "patient",   label: "Patient ID(s)", type: "text" },
           { key: "visitId",   label: "Visit ID", type: "text" },
-          { key: "datetime",  label: "Visit timestamp (with timezone)", type: "datetime" },
+          { key: "datetime",  label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
           { key: "what",      label: "What specifically froze or failed?", type: "textarea" },
           { key: "browser",   label: "Browser & OS", type: "text" },
           { key: "speedShot", label: "Speed test screenshot", type: "screenshot" },
-          { key: "jam",       label: "Jam link or screenshot", type: "screenshot" },
-          { key: "notes",     label: "Additional notes", type: "textarea" },
+          { key: "freq",      label: "Frequency", type: "text" },
+          { key: "whoAffected", label: "One / Some / All patients?", type: "text" },
+          { key: "notes",     label: "Additional notes / Jam links", type: "textarea" },
         ],
         title: () => "CX RQ — [Video Visit | BUG]",
         summary: () => `Video visit freezing / can't initiate. Speed and resource troubleshooting performed; escalating.`,
@@ -312,11 +313,13 @@
           { key: "advocate", label: "Advocate name", type: "text" },
           { key: "patient",  label: "Patient ID(s)", type: "text" },
           { key: "visitId",  label: "Visit ID", type: "text" },
-          { key: "datetime", label: "Visit timestamp (with timezone)", type: "datetime" },
+          { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
           { key: "patSees",  label: "What does the patient see when clicking the link?", type: "textarea" },
           { key: "errMsg",   label: "Exact error message text (if any)", type: "text" },
           { key: "patDevice",label: "Patient device & browser", type: "text" },
-          { key: "notes",    label: "Additional notes", type: "textarea" },
+          { key: "freq",     label: "Frequency", type: "text", hint: "Consistent / Intermittent", },
+          { key: "whoAffected", label: "One / Some / All patients?", type: "text" },
+          { key: "notes",    label: "Additional notes / Jam links", type: "textarea" },
         ],
         title: () => "CX RQ — [Video Visit | BUG]",
         summary: () => `Patient can't join video visit. Setup checks performed; link opens but patient is stuck — escalating.`,
@@ -334,10 +337,12 @@
           { key: "advocate", label: "Advocate name", type: "text" },
           { key: "patient",  label: "Patient ID(s)", type: "text" },
           { key: "visitId",  label: "Visit ID", type: "text" },
-          { key: "datetime", label: "Visit timestamp (with timezone)", type: "datetime" },
+          { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
           { key: "what",     label: "What did the patient see/hear?", type: "textarea" },
           { key: "patDevice",label: "Patient device type", type: "text" },
-          { key: "notes",    label: "Additional notes", type: "textarea" },
+          { key: "freq",     label: "Frequency", type: "text", hint: "Consistent / Intermittent", },
+          { key: "whoAffected", label: "One / Some / All patients?", type: "text" },
+          { key: "notes",    label: "Additional notes / Jam links", type: "textarea" },
         ],
         title: () => "CX RQ — [Video Visit | BUG]",
         summary: () => `Patient-side video/audio issue. Permissions confirmed and rejoined; issue persists — escalating.`,
@@ -353,10 +358,12 @@
           { key: "advocate",  label: "Advocate name", type: "text" },
           { key: "patient",   label: "Patient ID(s)", type: "text" },
           { key: "visitId",   label: "Visit ID", type: "text" },
-          { key: "datetime",  label: "Visit timestamp (with timezone)", type: "datetime" },
+          { key: "datetime",  label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
           { key: "patSees",   label: "What does the patient see/hear?", type: "textarea", hint: "Blank screen / spinner / error — get exact text" },
           { key: "patDevice", label: "Patient device type", type: "text" },
-          { key: "notes",     label: "Additional notes", type: "textarea" },
+          { key: "freq",      label: "Frequency", type: "text", hint: "Consistent / Intermittent", },
+          { key: "whoAffected", label: "One / Some / All patients?", type: "text" },
+          { key: "notes",     label: "Additional notes / Jam links", type: "textarea" },
         ],
         title: () => "CX RQ — [Video Visit | BUG]",
         summary: () => `Patient can't see/hear advocate, advocate appears connected. Advocate side confirmed working; escalating.`,
@@ -947,11 +954,18 @@
         if (!v) return "";
         if (typeof v === "string") return v;
         if (Array.isArray(v)) {
-          // datetime_multi format — only include items the user actually touched
           const touched = v.filter(item => item.touched && item.datetime);
           if (touched.length === 0) return "";
+          const hasVisitIds = touched.some(item => item.visitId !== undefined);
+          const label = hasVisitIds ? "Visit" : "Call";
           if (touched.length === 1) return touched[0].datetime;
-          return touched.map((item, i) => `Call ${i+1}: ${item.datetime}${item.patient ? ` (Patient: ${item.patient})` : ""}`).join("\n");
+          return touched.map((item, i) => {
+            const extras = [];
+            if (item.patient) extras.push(`Patient: ${item.patient}`);
+            if (item.visitId) extras.push(`Visit ID: ${item.visitId}`);
+            const extraStr = extras.length > 0 ? ` (${extras.join(", ")})` : "";
+            return `${label} ${i+1}: ${item.datetime}${extraStr}`;
+          }).join("\n");
         }
         return v.text || "";
       }
@@ -973,7 +987,7 @@
           .join("\n\n") || "(no fields filled in)";
         const extras = (escVals.__extraShots || []).filter(s => s?.dataUrl);
         const extraLog = extras.length > 0
-          ? `\n\nAdditional screenshots\n→ ${extras.map(s => `[Screenshot: ${s.name}]`).join(", ")}`
+          ? `\n\nScreenshots\n→ ${extras.map(s => `[Screenshot: ${s.name}]`).join(", ")}`
           : "";
         return `## Summary\n\n${summary}\n\n---\n\n## Decision Path\n\n${branchLog || "(none)"}\n\n---\n\n## Troubleshooting Info\n\n${tsLog}\n\n---\n\n## Ticket Details\n\n${escLog}${extraLog}`;
       }
@@ -1158,13 +1172,14 @@
                   )}
                   {f.type === "datetime" && <DateTimeInput value={escVals[f.key]||""} onChange={v=>setEsc(f.key, v)}/>}
                   {f.type === "datetime_multi" && <MultiDateTimeInput value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)}/>}
+                  {f.type === "datetime_multi_video" && <MultiDateTimeInput value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)} withVisitId={true}/>}
                   {f.type === "screenshot" && <ScreenshotField value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)}/>}
                 </div>
               ))}
 
               <div style={{marginBottom:16}}>
-                <label style={{display:"block",fontSize:13,fontWeight:500,color:"#374151",marginBottom:4}}>Additional screenshots</label>
-                <div style={{fontSize:12,color:"#9ca3af",marginBottom:5,lineHeight:1.5}}>Attach any additional screenshots that may help engineering (UI, error messages, etc.)</div>
+                <label style={{display:"block",fontSize:13,fontWeight:500,color:"#374151",marginBottom:4}}>Screenshots</label>
+                <div style={{fontSize:12,color:"#9ca3af",marginBottom:5,lineHeight:1.5}}>Attach any screenshots that may help engineering (UI, error messages, etc.)</div>
                 {(escVals.__extraShots || []).map((s, i) => (
                   <div key={i} style={{marginBottom:8,border:"1px solid #e5e7eb",borderRadius:8,padding:8,background:"#f9fafb"}}>
                     <ScreenshotField value={s} onChange={v => {
@@ -1208,7 +1223,7 @@
 
               {(() => {
                 const shots = ep.escalate.filter(f => f.type === "screenshot" && escVals[f.key]?.dataUrl).map(f => ({label: f.label, ...escVals[f.key]}));
-                const extras = (escVals.__extraShots || []).filter(s => s?.dataUrl).map((s, i) => ({label: `Additional screenshot ${i+1}`, ...s}));
+                const extras = (escVals.__extraShots || []).filter(s => s?.dataUrl).map((s, i) => ({label: `Screenshot ${i+1}`, ...s}));
                 const allShots = [...shots, ...extras];
                 if (allShots.length === 0) return null;
                 return (
