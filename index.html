@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CX Ticket Decision Tree</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #fff; }
+    * { box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="env,react">
+    const { useState, useRef } = React;
+
+    const CAT_COLORS = {
+      "Phone Call": { bg: "#e6f1fb", text: "#185fa5", border: "#b5d4f4" },
+      "Video Visit": { bg: "#eaf3de", text: "#3b6d11", border: "#c0dd97" },
+      "Fax":        { bg: "#faeeda", text: "#854f0b", border: "#fac775" },
+      "Messaging":  { bg: "#f1efe8", text: "#5f5e5a", border: "#d3d1c7" },
+      "Transcript": { bg: "#f3eefb", text: "#6b21a8", border: "#d8b4fe" },
+      "Other":      { bg: "#f1efe8", text: "#5f5e5a", border: "#d3d1c7" },
+    };
+    const CATEGORIES = ["Phone Call", "Video Visit", "Fax", "Messaging", "Transcript", "Other"];
+
+    const TIMEZONES = ["ET", "CT", "MT", "PT", "AKT", "HT", "Other"];
+
+    const FAX_CODE_INFO = {
+      "6100": { label: "Fax Number Busy", action: "Wait 5–10 min then retry. Most resolve on manual retry." },
+      "6300": { label: "Fax Detection Failed", action: "Verify destination is a working fax line. If confirmed and still failing, escalate." },
+      "6200": { label: "Fax Machine Not Answering", action: "Wait 5–10 min then retry. Confirm recipient's machine is operational if persists." },
+      "6700": { label: "Blocked by Receiving Party", action: "Do NOT retry. Escalate immediately for caller ID rotation." },
+      "6000": { label: "Fax Connect Failed", action: "Retry promptly. Escalate if it fails again on the same destination." },
+      "8000": { label: "Fax Transmit Failed", action: "Retry once. Escalate if persistent on the same destination." },
+      "8100": { label: "Transmit Failed (1–10 pages delivered)", action: "Partial delivery — flag to recipient." },
+      "8400": { label: "Transmit Failed (30+ pages delivered)", action: "Large doc partially delivered. Contact recipient before resending." },
+      "4100": { label: "Invalid Fax Number", action: "Always missing country code. Use Fix flow to correct and resubmit. No Documo ticket needed." },
+      "486":  { label: "Busy Here (SIP)", action: "Transient — retry. Try one more resend if final result." },
+      "480":  { label: "Temporarily Unavailable (SIP)", action: "Transient — retry. Flag to engineering if final result." },
+      "487":  { label: "Request Terminated (SIP)", action: "Timed out — retry promptly." },
+      "603":  { label: "Decline (SIP)", action: "Receiving end rejected. Escalate if persistent." },
+      "503":  { label: "Service Unavailable (SIP)", action: "Telecom temporarily down — retry." },
+    };
+    function getFaxCodeInfo(code) { return FAX_CODE_INFO[(code||"").trim()] || null; }
+
+    const GUIDANCE = {
+      twilio_connectivity: {
+        title: "Twilio Connectivity Failure",
+        severity: "Likely network or firewall issue",
+        description: "Failures in DNS, WebSocket, or ICE typically mean the advocate's network is blocking or interfering with the connection Twilio needs to establish.",
+        steps: [
+          "Have the advocate disable any VPN and retry the Twilio test",
+          "Confirm they're not on a restrictive corporate or hotel Wi-Fi network",
+          "If on Wi-Fi, try switching to a personal hotspot or wired ethernet",
+          "Check if a browser extension (ad blocker, privacy tool) might be blocking WebSocket connections",
+          "Restart the browser fully and re-run the Twilio test",
+        ],
+        note: "If retesting on a different network (e.g. personal hotspot) resolves it, the issue is the advocate's network — route to IT, not engineering.",
+      },
+      twilio_media: {
+        title: "Twilio Media / Audio Quality Failure",
+        severity: "Likely device or audio configuration issue",
+        description: "Media or audio test failures point to microphone permissions, audio device selection, or hardware problems on the advocate's machine.",
+        steps: [
+          "Confirm browser microphone permissions are fully enabled (re-enable even if showing as on)",
+          "Check system audio input/output device — make sure correct mic and speaker are selected",
+          "Close any other apps using audio (Zoom, Teams, Spotify, FaceTime)",
+          "If using Bluetooth headphones, test without them to rule out hardware issues",
+          "Restart the browser and re-run the Twilio test",
+        ],
+        note: "If swapping the audio device or removing headphones resolves it, the issue is hardware — not a Solace bug.",
+      },
+      twilio_bandwidth: {
+        title: "Twilio Bandwidth / Speed Failure",
+        severity: "Likely internet speed issue",
+        description: "Bandwidth failures indicate the advocate's connection doesn't have enough speed to support VoIP. Minimums are ≥10 Mbps down, ≥5 up, <100ms ping.",
+        steps: [
+          <>Have the advocate run a speed test at <a href="https://www.speedtest.net" target="_blank" rel="noopener noreferrer" style={{color:"#1d4ed8",textDecoration:"underline"}}>speedtest.net</a></>,
+          "If below targets: move closer to the router, switch to wired ethernet, or use a faster network",
+          "Disable VPN and any bandwidth-heavy apps (streaming, large downloads, cloud sync)",
+          "If on cellular, switch to Wi-Fi if available",
+          "Re-run the Twilio test after stabilizing the network",
+        ],
+        note: "If speed tests confirm below-target speeds, this is the advocate's network — route to IT, not engineering.",
+      },
+      twilio_multiple: {
+        title: "Multiple Twilio Test Failures",
+        severity: "Significant network or environment issue",
+        description: "Failures across multiple categories usually indicate a major network problem (heavily restricted network, very poor connection) or a fundamental device misconfiguration.",
+        steps: [
+          "Have the advocate disable VPN, close other apps, and re-run the Twilio test",
+          "Try a completely different network (personal hotspot, home Wi-Fi)",
+          "Restart the computer fully — not just the browser",
+          "Verify mic and camera permissions are granted for the browser at the OS level (not just browser settings)",
+          "If failures persist on a known-good network, this may be a device or browser issue → route to IT",
+        ],
+        note: "Multiple failures rarely indicate a Solace bug. Most often this is the advocate's environment.",
+      },
+    };
+
+    const TWILIO_GUIDANCE_MAP = {
+      "Connectivity (DNS / WebSocket / ICE)": "twilio_connectivity",
+      "Media / Audio quality": "twilio_media",
+      "Bandwidth / network speed": "twilio_bandwidth",
+      "Multiple categories": "twilio_multiple",
+    };
+
+    const ENDPOINTS = {
+      "phone_outbound_failed": {
+        troubleshoot: [
+          { id: "vpn", q: "Was the advocate's VPN disabled before retrying?", satisfyOn: "Yes", warning: "An active VPN can prevent outbound calls from connecting. Have the advocate disable their VPN and retry the call before escalating." },
+          { id: "cxLine", q: "Did the advocate test by calling the patient from the CX line?", satisfyOn: "Yes", warning: "Test by calling the patient from the CX line. If the CX line also fails to connect, the patient may have blocked the Solace number — this is a patient-side issue, not a product bug. Reach the patient via email or alternate contact and ask them to unblock." },
+        ],
+        escalate: [
+          { key: "ticket",     label: "Zendesk ticket #", type: "text" },
+          { key: "datetime",   label: "Call timestamp (with timezone)", type: "datetime" },
+          { key: "advocate",   label: "Advocate name", type: "text" },
+          { key: "patient",    label: "Patient ID", type: "text" },
+          { key: "device",     label: "Device & OS", type: "text" },
+          { key: "browser",    label: "Browser", type: "text" },
+          { key: "twilioShot", label: "Twilio Network Test screenshot", type: "screenshot", hint: "networktest.twilio.com" },
+          { key: "notes",      label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Phone Call | BUG]",
+        summary: (ctx, esc) => {
+          const f = ctx?.answers?.twilioFailed;
+          const tw = f ? ` Twilio failures: ${f}.` : "";
+          return `Outbound call failed to connect.${tw} Troubleshooting performed; escalating with Twilio test for log investigation.`;
+        },
+      },
+
+      "phone_inbound_failed": {
+        troubleshoot: [
+          { id: "dnd", q: "Is Do Not Disturb / Vacation disabled in Solace?", satisfyOn: "Yes", warning: "DND or Vacation mode can block inbound calls from ringing. Have the advocate disable it and test by calling from the CX line before escalating." },
+          { id: "unknownNums", q: "Can the advocate's personal phone receive calls from unknown numbers?", satisfyOn: "Yes", warning: "If their phone is blocking calls from unknown numbers, this is a device setting — not a Solace issue. Help them update their phone settings to allow unknown callers before escalating." },
+        ],
+        escalate: [
+          { key: "ticket",     label: "Zendesk ticket #", type: "text" },
+          { key: "advocate",   label: "Advocate name", type: "text" },
+          { key: "datetime",   label: "Timestamp of missed call (with timezone)", type: "datetime" },
+          { key: "dndStatus",  label: "DND status at time of call", type: "text", hint: "On / Off / Unknown" },
+          { key: "device",     label: "Device & OS", type: "text" },
+          { key: "browser",    label: "Browser", type: "text" },
+          { key: "twilioShot", label: "Twilio Network Test screenshot", type: "screenshot" },
+          { key: "notes",      label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Phone Call | BUG]",
+        summary: () => `Inbound call not ringing for advocate. DND and personal phone settings checked; escalating for forwarding investigation.`,
+      },
+
+      "phone_advocate_cant_hear": {
+        troubleshoot: [
+          { id: "speed",  q: "Did the advocate run a speed test and meet minimums (≥10 down, ≥5 up, <100ms)?", satisfyOn: "Yes", warning: "Below-target internet speeds are the most common cause of one-way audio. Have the advocate move closer to the router or switch to wired ethernet, then retest before escalating." },
+          { id: "apps",   q: "Did the advocate close all other audio apps (Zoom, Teams, Spotify) and retry?", satisfyOn: "Yes", warning: "Other audio apps can hijack the microphone or output device. Close all of them and retry before escalating." },
+          { id: "headphones", q: "If using headphones, did the advocate try without them?", satisfyOn: "Yes", warning: "Headphone hardware/Bluetooth issues commonly cause one-way audio. Have them try without headphones before escalating." },
+        ],
+        escalate: [
+          { key: "ticket",     label: "Zendesk ticket #", type: "text" },
+          { key: "advocate",   label: "Advocate name", type: "text" },
+          { key: "datetime",   label: "Call timestamp (with timezone)", type: "datetime" },
+          { key: "patient",    label: "Patient ID", type: "text" },
+          { key: "browser",    label: "Browser", type: "text" },
+          { key: "twilioShot", label: "Twilio Network Test screenshot", type: "screenshot" },
+          { key: "speedShot",  label: "Speed test screenshot", type: "screenshot" },
+          { key: "freq",       label: "Frequency", type: "text", hint: "One patient / Some / All patients" },
+          { key: "notes",      label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Phone Call | BUG]",
+        summary: (ctx, esc) => {
+          const f = ctx?.answers?.twilioFailed;
+          const tw = f ? ` Twilio failures: ${f}.` : "";
+          return `Advocate can't hear patient (one-way audio) on connected call.${tw} All troubleshooting steps performed; escalating with network screenshots.`;
+        },
+      },
+
+      "phone_patient_cant_hear": {
+        troubleshoot: [
+          { id: "speed",     q: "Did the advocate run a speed test and meet minimums (≥10 down, ≥5 up, <100ms)?", satisfyOn: "Yes", warning: "Below-target speeds can cause one-way audio. Have advocate move closer to router or switch to wired before escalating." },
+          { id: "mic",       q: "Were the advocate's microphone permissions confirmed enabled in the browser? (Re-enable even if they say yes)", satisfyOn: "Yes", warning: "Browser mic permissions can silently fail. Have the advocate fully re-enable mic permissions and retry — even if they think they're already on." },
+          { id: "patOutput", q: "Did the patient confirm the correct output device is selected on their end?", satisfyOn: "Yes", warning: "If the patient's audio is routed to a different output (Bluetooth speaker, paired headphones), they won't hear the advocate. Have the patient check their system audio settings before escalating." },
+          { id: "patApps",   q: "Did the patient close any other audio apps and retry?", satisfyOn: "Yes", warning: "Other audio apps on the patient's device can interfere. Have them close all and retry." },
+          { id: "headphones",q: "If advocate uses headphones, did they try without them?", satisfyOn: "Yes", warning: "Headphone/Bluetooth issues can prevent the mic from sending audio properly. Have them try without headphones before escalating." },
+        ],
+        escalate: [
+          { key: "ticket",     label: "Zendesk ticket #", type: "text" },
+          { key: "advocate",   label: "Advocate name", type: "text" },
+          { key: "datetime",   label: "Call timestamp (with timezone)", type: "datetime" },
+          { key: "patient",    label: "Patient ID", type: "text" },
+          { key: "browser",    label: "Browser version", type: "text" },
+          { key: "network",    label: "Network type (Wi-Fi / wired / cellular)", type: "text" },
+          { key: "twilioShot", label: "Twilio Network Test screenshot", type: "screenshot" },
+          { key: "speedShot",  label: "Speed test screenshot", type: "screenshot" },
+          { key: "freq",       label: "Frequency", type: "text", hint: "One / Some / All patients" },
+          { key: "notes",      label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Phone Call | BUG]",
+        summary: (ctx, esc) => {
+          const f = ctx?.answers?.twilioFailed;
+          const tw = f ? ` Twilio failures: ${f}.` : "";
+          return `Patient can't hear advocate on connected call.${tw} Full troubleshooting performed; escalating with network details.`;
+        },
+      },
+
+      "phone_quality": {
+        troubleshoot: [
+          { id: "speed",     q: "Did the speed test (run during the call) meet targets? (≥10 down, ≥5 up, <100ms)", satisfyOn: "Yes", warning: "Below-target speeds are a network issue, not a Solace issue. Have the advocate move closer to the router or switch to wired ethernet before escalating." },
+          { id: "vpn",       q: "Was the VPN disabled and the call retried?", satisfyOn: "Yes", warning: "VPNs are a leading cause of VoIP latency and jitter. Have the advocate disable the VPN and retry before escalating." },
+          { id: "bandwidth", q: "Were any bandwidth-heavy apps (streaming, large downloads) closed and the call retried?", satisfyOn: "Yes", warning: "Streaming or large downloads can saturate the connection. Close them and retry before escalating." },
+        ],
+        escalate: [
+          { key: "ticket",     label: "Zendesk ticket #", type: "text" },
+          { key: "datetime",   label: "Call timestamps (with timezone)", type: "datetime" },
+          { key: "callDur",    label: "Call duration", type: "text" },
+          { key: "advocate",   label: "Advocate name", type: "text" },
+          { key: "device",     label: "Device(s)", type: "text" },
+          { key: "network",    label: "Network type (Wi-Fi / wired / cellular)", type: "text" },
+          { key: "speedShot",  label: "Speed test screenshot (taken during call)", type: "screenshot" },
+          { key: "twilioShot", label: "Twilio Network Test screenshot", type: "screenshot" },
+          { key: "freq",       label: "Frequency", type: "text" },
+          { key: "notes",      label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Phone Call | BUG]",
+        summary: (ctx, esc) => {
+          const f = ctx?.answers?.twilioFailed;
+          const tw = f ? ` Twilio failures: ${f}.` : "";
+          return `Poor call quality / latency.${tw} All network troubleshooting performed; escalating with Twilio + speed test screenshots.`;
+        },
+      },
+
+      "video_advocate_video": {
+        troubleshoot: [
+          { id: "camPerm",  q: "Are camera permissions confirmed enabled in the browser for both advocate and patient?", satisfyOn: "Yes", warning: "Browser camera permissions need to be confirmed for both sides. Have them check and explicitly re-enable before escalating." },
+          { id: "otherCam", q: "Are all other apps using the camera closed? (Zoom desktop, FaceTime, etc.)", satisfyOn: "Yes", warning: "Another app holding the camera will block the visit. Close Zoom desktop, FaceTime, etc. and retry." },
+          { id: "chrome",   q: "Is the advocate using Chrome?", satisfyOn: "Yes", warning: "Chrome is preferred for video visits. Have the advocate switch to Chrome and retry before escalating." },
+          { id: "restart",  q: "Did the advocate close/reopen the browser and rejoin? (Try restarting computer if still failing)", satisfyOn: "Yes", warning: "Closing and reopening the browser, or restarting the computer, resolves many video issues. Have them try this before escalating." },
+        ],
+        escalate: [
+          { key: "ticket",   label: "Zendesk ticket #", type: "text" },
+          { key: "advocate", label: "Advocate / physician name", type: "text" },
+          { key: "patient",  label: "Patient ID", type: "text" },
+          { key: "visitId",  label: "Visit ID", type: "text", hint: "Pull from admin URL after \"visitid=\"" },
+          { key: "datetime", label: "Visit timestamp (with timezone)", type: "datetime" },
+          { key: "browser",  label: "Browser", type: "text" },
+          { key: "device",   label: "Advocate device", type: "text" },
+          { key: "freq",     label: "Frequency", type: "text", hint: "Consistent / Intermittent" },
+          { key: "jam",      label: "Jam link or screenshot", type: "screenshot" },
+          { key: "notes",    label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Video Visit | BUG]",
+        summary: () => `Advocate/physician video not showing. All troubleshooting performed; escalating with visit ID for engineering.`,
+      },
+
+      "video_advocate_audio": {
+        troubleshoot: [
+          { id: "micPerm",   q: "Are microphone permissions confirmed enabled in the browser for both advocate and patient?", satisfyOn: "Yes", warning: "Mic permissions need to be confirmed for both sides. Have them re-enable explicitly before escalating." },
+          { id: "ioDevice",  q: "Is the correct input/output device selected in the system audio settings?", satisfyOn: "Yes", warning: "Wrong I/O device selection (Bluetooth speaker, paired headphones) is a common cause. Have them check system audio settings." },
+          { id: "otherApps", q: "Are all other audio apps closed?", satisfyOn: "Yes", warning: "Other audio apps can hijack the mic or output. Close them all and retry." },
+          { id: "headphones",q: "If using headphones, did they try without them?", satisfyOn: "Yes", warning: "Headphone hardware/Bluetooth issues commonly cause audio failures. Try without before escalating." },
+        ],
+        escalate: [
+          { key: "ticket",   label: "Zendesk ticket #", type: "text" },
+          { key: "advocate", label: "Advocate name", type: "text" },
+          { key: "patient",  label: "Patient ID", type: "text" },
+          { key: "visitId",  label: "Visit ID", type: "text", hint: "Pull from admin URL after \"visitid=\"" },
+          { key: "datetime", label: "Visit timestamp (with timezone)", type: "datetime" },
+          { key: "browser",  label: "Browser", type: "text" },
+          { key: "os",       label: "OS", type: "text" },
+          { key: "freq",     label: "Frequency", type: "text" },
+          { key: "jam",      label: "Jam link or screenshot", type: "screenshot" },
+          { key: "notes",    label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Video Visit | BUG]",
+        summary: () => `Advocate/physician audio not working in video visit. All troubleshooting performed.`,
+      },
+
+      "video_freezing": {
+        troubleshoot: [
+          { id: "speed",    q: "Did the speed test (run during the visit) meet targets? (≥10 down, ≥5 up, <100ms)", satisfyOn: "Yes", warning: "Below-target speeds cause freezing. Have the advocate move closer to the router or switch to wired ethernet, then retest before escalating." },
+          { id: "closed",   q: "Were all other tabs and apps using audio/video closed?", satisfyOn: "Yes", warning: "Other tabs/apps using A/V can saturate resources. Close them all and retry." },
+          { id: "rejoined", q: "Did the advocate try refreshing and rejoining?", satisfyOn: "Yes", warning: "Refreshing and rejoining resolves many freezing issues. Have them try before escalating." },
+        ],
+        escalate: [
+          { key: "ticket",    label: "Zendesk ticket #", type: "text" },
+          { key: "advocate",  label: "Advocate name", type: "text" },
+          { key: "patient",   label: "Patient ID", type: "text" },
+          { key: "visitId",   label: "Visit ID", type: "text" },
+          { key: "datetime",  label: "Visit timestamp (with timezone)", type: "datetime" },
+          { key: "what",      label: "What specifically froze or failed?", type: "textarea" },
+          { key: "browser",   label: "Browser & OS", type: "text" },
+          { key: "speedShot", label: "Speed test screenshot", type: "screenshot" },
+          { key: "jam",       label: "Jam link or screenshot", type: "screenshot" },
+          { key: "notes",     label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Video Visit | BUG]",
+        summary: () => `Video visit freezing / can't initiate. Speed and resource troubleshooting performed; escalating.`,
+      },
+
+      "video_patient_cant_join": {
+        userError: true,
+        userErrorNote: "Patient can't join — most often a setup issue (didn't get the link, clicked too early, unsupported device). The questions below confirm those before escalating.",
+        troubleshoot: [
+          { id: "linkReceived", q: "Did the patient receive the join link? (checked spam if email)", satisfyOn: "Yes", warning: "If the link wasn't received, this is a delivery issue — check spam folder, verify email address on file, or resend before escalating." },
+          { id: "timing",       q: "Did the patient click the link within the visit window? (not before window opened)", satisfyOn: "Yes", warning: "Links don't work before the visit window opens. Have the patient try again at the correct time before escalating." },
+          { id: "supported",    q: "Is the patient on a supported device and browser? (Chrome on laptop is most reliable)", satisfyOn: "Yes", warning: "Unsupported browsers/devices commonly fail. Have the patient try Chrome on a laptop if possible before escalating." },
+        ],
+        escalate: [
+          { key: "ticket",   label: "Zendesk ticket #", type: "text" },
+          { key: "advocate", label: "Advocate name", type: "text" },
+          { key: "patient",  label: "Patient ID", type: "text" },
+          { key: "visitId",  label: "Visit ID", type: "text" },
+          { key: "datetime", label: "Visit timestamp (with timezone)", type: "datetime" },
+          { key: "patSees",  label: "What does the patient see when clicking the link?", type: "textarea" },
+          { key: "errMsg",   label: "Exact error message text (if any)", type: "text" },
+          { key: "patDevice",label: "Patient device & browser", type: "text" },
+          { key: "notes",    label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Video Visit | BUG]",
+        summary: () => `Patient can't join video visit. Setup checks performed; link opens but patient is stuck — escalating.`,
+      },
+
+      "video_patient_av": {
+        userError: true,
+        userErrorNote: "Patient-side A/V issues are most often user error. Confirm permissions and rejoin before escalating to product.",
+        troubleshoot: [
+          { id: "perms",    q: "Did the patient grant camera and mic permissions when prompted?", satisfyOn: "Yes", warning: "Permissions not granted is the most common cause of patient A/V issues. Have them rejoin and explicitly grant permissions before escalating." },
+          { id: "rejoined", q: "Did the patient try leaving and rejoining the visit?", satisfyOn: "Yes", warning: "Rejoining resolves many patient A/V issues. Have them try before escalating." },
+        ],
+        escalate: [
+          { key: "ticket",   label: "Zendesk ticket #", type: "text" },
+          { key: "advocate", label: "Advocate name", type: "text" },
+          { key: "patient",  label: "Patient ID", type: "text" },
+          { key: "visitId",  label: "Visit ID", type: "text" },
+          { key: "datetime", label: "Visit timestamp (with timezone)", type: "datetime" },
+          { key: "what",     label: "What did the patient see/hear?", type: "textarea" },
+          { key: "patDevice",label: "Patient device type", type: "text" },
+          { key: "notes",    label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Video Visit | BUG]",
+        summary: () => `Patient-side video/audio issue. Permissions confirmed and rejoined; issue persists — escalating.`,
+      },
+
+      "video_patient_cant_see_advocate": {
+        troubleshoot: [
+          { id: "advWorks", q: "Confirmed the advocate's camera and mic are working on their end?", satisfyOn: "Yes", warning: "Confirm advocate's side is functional first — otherwise the issue may be with their setup, not the patient's." },
+          { id: "scope",    q: "Is this happening with all patients, or just this one?", satisfyOn: "All", warning: "If only one patient is affected, this is likely specific to that patient's device. Confirm the patient's setup before escalating as a platform bug." },
+        ],
+        escalate: [
+          { key: "ticket",    label: "Zendesk ticket #", type: "text" },
+          { key: "advocate",  label: "Advocate name", type: "text" },
+          { key: "patient",   label: "Patient ID", type: "text" },
+          { key: "visitId",   label: "Visit ID", type: "text" },
+          { key: "datetime",  label: "Visit timestamp (with timezone)", type: "datetime" },
+          { key: "patSees",   label: "What does the patient see/hear?", type: "textarea", hint: "Blank screen / spinner / error — get exact text" },
+          { key: "patDevice", label: "Patient device type", type: "text" },
+          { key: "notes",     label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Video Visit | BUG]",
+        summary: () => `Patient can't see/hear advocate, advocate appears connected. Advocate side confirmed working; escalating.`,
+      },
+
+      "fax_send": {
+        troubleshoot: [
+          { id: "isPdf",     q: "Is the file being sent a PDF?", satisfyOn: "Yes", warning: "Other file formats frequently fail to render. Convert to PDF and retry before escalating." },
+          { id: "size",      q: "Is the file under 10 MB?", satisfyOn: "Yes", warning: "Files larger than 10 MB can't be uploaded. Reduce file size and retry." },
+          { id: "rightNum",  q: "Has the recipient fax number been verified digit by digit?", satisfyOn: "Yes", warning: "Error code 4100 always means a missing country code. Use the Fix flow to correct the number before escalating — no Documo ticket needed." },
+          { id: "retried",   q: "Has the advocate retried at least once after the initial failure?", satisfyOn: "Yes", warning: "Most fax failures (6100, 6200, 8000-range) clear on a manual retry. Have the advocate retry before escalating. For 6700 (blocked) — escalate immediately, retries will not help." },
+        ],
+        escalate: [
+          { key: "ticket",    label: "Zendesk ticket #", type: "text" },
+          { key: "advocate",  label: "Advocate name", type: "text" },
+          { key: "datetime",  label: "Timestamps of attempts", type: "datetime" },
+          { key: "faxId",     label: "Fax ID", type: "text", hint: "Required — Documo can't pull logs without it" },
+          { key: "errCode",   label: "Final 4-digit error code", type: "text" },
+          { key: "errCodes",  label: "All error codes received (in order of attempt)", type: "text" },
+          { key: "consistent",label: "Was the final code consistent across attempts?", type: "text" },
+          { key: "recipient", label: "Recipient fax number", type: "text" },
+          { key: "senderFax", label: "Advocate's Solace fax number", type: "text" },
+          { key: "fileType",  label: "File type", type: "text" },
+          { key: "fileSize",  label: "File size", type: "text" },
+          { key: "pages",     label: "Number of pages", type: "text" },
+          { key: "attempts",  label: "Number of attempts", type: "text" },
+          { key: "notes",     label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Fax | BUG]",
+        summary: (ts, esc) => {
+          const info = getFaxCodeInfo(esc.errCode);
+          return info ? `Fax send failure — ${esc.errCode} (${info.label}). ${info.action}` : `Fax send failure. Code: ${esc.errCode || "not captured"}. Pre-escalation checks performed.`;
+        },
+      },
+
+      "fax_receive": {
+        troubleshoot: [
+          { id: "rightNum", q: "Did the sender have the correct Solace fax number for this advocate?", satisfyOn: "Yes", warning: "Verify the sender used the right Solace fax number first. Wrong number = fax went elsewhere, not a Solace issue." },
+        ],
+        escalate: [
+          { key: "ticket",      label: "Zendesk ticket #", type: "text" },
+          { key: "advocate",    label: "Advocate name", type: "text" },
+          { key: "datetime",    label: "Expected arrival date/time (with timezone)", type: "datetime" },
+          { key: "senderFax",   label: "Sender's fax number", type: "text" },
+          { key: "advocateFax", label: "Advocate's Solace fax number", type: "text" },
+          { key: "senderConf",  label: "Sender confirmation status", type: "text", hint: "Confirmed sent / Error on their end / Unknown" },
+          { key: "scope",       label: "All senders or one specific?", type: "text" },
+          { key: "notes",       label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Fax | BUG]",
+        summary: () => `Incoming fax not received. Sender used correct Solace number; escalating for Documo log investigation.`,
+      },
+
+      "msg_cant_send": {
+        troubleshoot: [
+          { id: "refreshed", q: "Did the advocate hard-refresh (Cmd+Shift+R / Ctrl+Shift+R) and retry?", satisfyOn: "Yes", warning: "Hard-refresh resolves many messaging issues. Have the advocate try before escalating." },
+          { id: "eligible",  q: "Is the patient currently eligible / in an active patient-advocate relationship?", satisfyOn: "Yes", warning: "If the patient is ineligible, the advocate sees a read-only thread — this is expected behavior, not a bug." },
+          { id: "smsLen",    q: "If sending via SMS: is the message under 1,600 characters?", satisfyOn: "Yes / N/A", warning: "Outbound SMS has a hard 1,600 character limit. Messages exceeding this fail to send. Have the advocate shorten the message or split it." },
+        ],
+        escalate: [
+          { key: "ticket",   label: "Zendesk ticket #", type: "text" },
+          { key: "advocate", label: "Advocate name", type: "text" },
+          { key: "patient",  label: "Patient ID", type: "text" },
+          { key: "datetime", label: "Issue timestamp (with timezone)", type: "datetime" },
+          { key: "errMsg",   label: "Error message exact text", type: "text" },
+          { key: "errShot",  label: "Error message screenshot", type: "screenshot" },
+          { key: "scope",    label: "One patient or all?", type: "text" },
+          { key: "device",   label: "Browser & device", type: "text" },
+          { key: "notes",    label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Messaging | BUG]",
+        summary: () => `Advocate unable to send message. Refresh, eligibility, and SMS limits checked.`,
+      },
+
+      "msg_patient_not_receiving_inplatform": {
+        troubleshoot: [
+          { id: "showsSent", q: "Does the message appear as sent in the advocate's inbox?", satisfyOn: "Yes", warning: "If the message doesn't show as sent on the advocate's side, the issue is with sending — not receiving. Re-classify this ticket as \"Advocate can't send\"." },
+          { id: "loggedIn",  q: "Is the patient logged into the portal?", satisfyOn: "Yes", warning: "If the patient isn't logged in, they won't see the message. Have them refresh or log back in before escalating." },
+        ],
+        escalate: [
+          { key: "ticket",   label: "Zendesk ticket #", type: "text" },
+          { key: "advocate", label: "Advocate name", type: "text" },
+          { key: "patient",  label: "Patient ID", type: "text" },
+          { key: "datetime", label: "Issue timestamp (with timezone)", type: "datetime" },
+          { key: "showsSent",label: "Message shows as sent in advocate inbox?", type: "text" },
+          { key: "notes",    label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Messaging | BUG]",
+        summary: () => `Patient not receiving in-platform messages. Sent status confirmed, patient logged in. See COM-1724.`,
+      },
+
+      "msg_patient_not_receiving_sms": {
+        troubleshoot: [
+          { id: "showsSent", q: "Does the message appear as sent in the advocate's inbox?", satisfyOn: "Yes", warning: "If not sent on advocate's side, this is a send issue — re-classify the ticket." },
+          { id: "saved",     q: "Does the patient have the Solace number saved in their contacts?", satisfyOn: "Yes", warning: "Unsaved numbers are frequently filtered as spam. Have the patient save the Solace number to contacts before escalating." },
+          { id: "unknown",   q: "Can the patient's phone receive texts from unknown numbers?", satisfyOn: "Yes", warning: "If their phone blocks unknown senders, this is a device setting — not a Solace issue." },
+        ],
+        escalate: [
+          { key: "ticket",   label: "Zendesk ticket #", type: "text" },
+          { key: "advocate", label: "Advocate name", type: "text" },
+          { key: "patient",  label: "Patient ID", type: "text" },
+          { key: "datetime", label: "Issue timestamp (with timezone)", type: "datetime" },
+          { key: "showsSent",label: "Message shows as sent in advocate inbox?", type: "text" },
+          { key: "notes",    label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Messaging | BUG]",
+        summary: () => `Patient not receiving SMS messages. Contact + filter checks done. SMS may have failed but should still deliver via portal — confirm.`,
+      },
+
+      "msg_reply_not_received": {
+        troubleshoot: [
+          { id: "patSent", q: "Does the patient see their reply as sent on their end?", satisfyOn: "Yes", warning: "If the patient doesn't see their reply as sent, it never went through — this is a patient-side send issue, not an advocate-side receive issue." },
+        ],
+        escalate: [
+          { key: "ticket",     label: "Zendesk ticket #", type: "text" },
+          { key: "advocate",   label: "Advocate name", type: "text" },
+          { key: "patient",    label: "Patient ID", type: "text" },
+          { key: "datetime",   label: "Issue timestamp (with timezone)", type: "datetime" },
+          { key: "patChannel", label: "Did patient reply in-platform or from personal phone?", type: "text" },
+          { key: "patSent",    label: "Patient sees reply as sent?", type: "text" },
+          { key: "notes",      label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Messaging | BUG]",
+        summary: () => `Advocate not receiving patient replies. Patient confirms sent on their end. See COM-1724, COM-2017.`,
+      },
+
+      "msg_ui": {
+        troubleshoot: [
+          { id: "refreshed",   q: "Did the advocate hard-refresh (Cmd+Shift+R / Ctrl+Shift+R)?", satisfyOn: "Yes", warning: "Hard-refresh resolves many UI issues. Have the advocate try before escalating." },
+          { id: "diffBrowser", q: "Did the advocate try a different browser?", satisfyOn: "Yes", warning: "If the issue is browser-specific, switching to Chrome or another browser will resolve it. Try before escalating." },
+        ],
+        escalate: [
+          { key: "ticket",   label: "Zendesk ticket #", type: "text" },
+          { key: "advocate", label: "Advocate name", type: "text" },
+          { key: "datetime", label: "Issue timestamp (with timezone)", type: "datetime" },
+          { key: "uiDesc",   label: "What exactly is broken?", type: "textarea" },
+          { key: "errShot",  label: "Screenshot of issue", type: "screenshot" },
+          { key: "scope",    label: "One conversation or all?", type: "text" },
+          { key: "device",   label: "Browser & device", type: "text" },
+          { key: "notes",    label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Messaging | BUG]",
+        summary: () => `Messaging UI issue. Hard-refresh and alternate browser tested.`,
+      },
+
+      "transcript_log_missing": {
+        troubleshoot: [
+          { id: "waited", q: "Has the advocate waited 30+ minutes for the call log to appear?", satisfyOn: "Yes", warning: "The Calls & Visits log refreshes every 30 minutes — it doesn't update in real time. Have the advocate wait and refresh before assuming it's missing." },
+        ],
+        escalate: [
+          { key: "ticket",      label: "Zendesk ticket #", type: "text" },
+          { key: "advocate",    label: "Advocate name", type: "text" },
+          { key: "patient",     label: "Patient ID", type: "text" },
+          { key: "datetime",    label: "Call timestamp (with timezone)", type: "datetime" },
+          { key: "callType",    label: "Call type", type: "text", hint: "Phone Call / Video Visit" },
+          { key: "sched",       label: "Impromptu or scheduled?", type: "text" },
+          { key: "callDur",     label: "Approximate call duration", type: "text" },
+          { key: "patAnswered", label: "Did patient answer or go to voicemail?", type: "text" },
+          { key: "device",      label: "Browser & device", type: "text" },
+          { key: "notes",       label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Transcript | BUG]",
+        summary: () => `Call log AND transcript both missing — significant pipeline failure. 30-min refresh wait confirmed; escalating.`,
+      },
+
+      "transcript_missing_entirely": {
+        troubleshoot: [
+          { id: "allRetries",  q: "Has the advocate exhausted all 3 manual retries via the Retry button?", satisfyOn: "Yes", warning: "Advocate must use all 3 manual retries before escalating. The platform first auto-retries 3× (5 min apart), then exposes 3 manual retries. Hold the ticket until exhausted." },
+          { id: "reportButton",q: "Did the \"Report a Problem\" button appear and was it used?", satisfyOn: "Yes", warning: "The \"Report a Problem\" button appears after all retries are exhausted. Have the advocate use that to flag the issue before manually escalating to Linear." },
+        ],
+        escalate: [
+          { key: "ticket",      label: "Zendesk ticket #", type: "text" },
+          { key: "advocate",    label: "Advocate name", type: "text" },
+          { key: "patient",     label: "Patient ID", type: "text" },
+          { key: "datetime",    label: "Call timestamp (with timezone)", type: "datetime" },
+          { key: "callType",    label: "Call type", type: "text", hint: "Phone Call / Video Visit" },
+          { key: "sched",       label: "Impromptu or scheduled?", type: "text" },
+          { key: "callDur",     label: "Approximate call duration", type: "text" },
+          { key: "patAnswered", label: "Did patient answer or go to voicemail?", type: "text" },
+          { key: "device",      label: "Browser & device", type: "text" },
+          { key: "notes",       label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Transcript | BUG]",
+        summary: () => `Transcript missing entirely. All retries exhausted, Report a Problem used. Escalating for transcript pipeline investigation.`,
+      },
+
+      "transcript_not_loading": {
+        troubleshoot: [
+          { id: "refreshed",   q: "Did the advocate hard-refresh (Cmd+Shift+R / Ctrl+Shift+R)?", satisfyOn: "Yes", warning: "Hard-refresh resolves many transcript display issues. Have the advocate try before escalating." },
+          { id: "diffBrowser", q: "Did the advocate try a different browser?", satisfyOn: "Yes", warning: "If the issue is browser-specific, switching browsers will resolve it. Try before escalating." },
+        ],
+        escalate: [
+          { key: "ticket",   label: "Zendesk ticket #", type: "text" },
+          { key: "advocate", label: "Advocate name", type: "text" },
+          { key: "patient",  label: "Patient ID", type: "text" },
+          { key: "datetime", label: "Call timestamp (with timezone)", type: "datetime" },
+          { key: "scope",    label: "All transcripts or just this one?", type: "text" },
+          { key: "device",   label: "Browser & device", type: "text" },
+          { key: "notes",    label: "Additional notes", type: "textarea" },
+        ],
+        title: () => "CX RQ — [Transcript | BUG]",
+        summary: () => `Transcript present but not displaying. Display-layer issue. Hard-refresh and alt-browser tested.`,
+      },
+
+      "other": {
+        troubleshoot: [],
+        escalate: [
+          { key: "ticket",   label: "Zendesk ticket #", type: "text" },
+          { key: "advocate", label: "Advocate name", type: "text" },
+          { key: "patient",  label: "Patient ID", type: "text", hint: "\"N/A\" if not patient-related" },
+          { key: "datetime", label: "Issue timestamp (with timezone)", type: "datetime" },
+          { key: "title",    label: "Brief issue title", type: "text", hint: "Specific. \"Advocate unable to access patient file after care transfer\" not \"platform issue\"" },
+          { key: "desc",     label: "Full description", type: "textarea", hint: "What happened, what was expected, exact error messages" },
+          { key: "device",   label: "Device & browser", type: "text" },
+          { key: "errShot",  label: "Screenshot of error or unexpected UI", type: "screenshot" },
+        ],
+        title: (esc) => `CX RQ — [${esc.title || "Issue"} | NEEDS TRIAGE]`,
+        summary: (ts, esc) => `Unclassified: "${esc.title}". ${esc.desc}`,
+      },
+    };
+
+    const TREES = {
+      "Phone Call": [
+        { key: "twilioResult", q: "Did the advocate run a Twilio Network Test? (networktest.twilio.com)", hint: "Should be done first for any phone call issue. Have advocate run on the exact device & browser they had the issue on.", opts: ["Yes — all passed", "Yes — one or more failed", "Not yet / No"] },
+        { key: "twilioFailed", q: "Which Twilio tests failed?", hint: "Check the screenshot — select all that apply. This routes the ticket correctly.", opts: ["Connectivity (DNS / WebSocket / ICE)", "Media / Audio quality", "Bandwidth / network speed", "Multiple categories"], showIf: a => a.twilioResult === "Yes — one or more failed" },
+        { key: "connected", q: "Did the call connect?", opts: ["Yes — but had audio issues", "No — never connected"] },
+        { key: "direction", q: "Was it inbound or outbound?", opts: ["Outbound (advocate calling patient)", "Inbound (patient calling advocate)"], showIf: a => a.connected === "No — never connected" },
+        { key: "audio", q: "What was the audio problem?", opts: ["Advocate can't hear patient (one-way)", "Patient can't hear advocate", "Poor quality / latency / echo / jitter"], showIf: a => a.connected === "Yes — but had audio issues" },
+      ],
+      "Video Visit": [
+        { key: "who", q: "Who is experiencing the issue?", opts: ["Advocate or Physician", "Patient"] },
+        { key: "advProb", q: "What specifically isn't working?", opts: ["Video not showing", "Audio not working", "Freezing / can't initiate visit"], showIf: a => a.who === "Advocate or Physician" },
+        { key: "patProb", q: "What is the patient experiencing?", opts: ["Can't join the visit at all", "Joined but their video/audio isn't working", "Can't see/hear advocate (advocate appears connected)"], showIf: a => a.who === "Patient" },
+      ],
+      "Fax": [
+        { key: "dir", q: "Sending or receiving?", opts: ["Sending — fax is failing", "Receiving — fax not arriving"] },
+      ],
+      "Messaging": [
+        { key: "issue", q: "What is the issue?", opts: ["Advocate can't send", "Patient not receiving", "Patient replied — advocate not receiving", "UI / inbox problem"] },
+        { key: "setup", q: "How does the patient receive messages?", opts: ["In-platform only", "Forwarded to phone (SMS)"], showIf: a => a.issue === "Patient not receiving" },
+      ],
+      "Transcript": [
+        { key: "logVisible", q: "Is the call log visible in Calls & Visits?", hint: "If unsure, have advocate wait — log refreshes every 30 min", opts: ["Yes — log is there", "No — nothing there at all"] },
+        { key: "state", q: "What state is the transcript in?", opts: ["Missing entirely", "Present but not loading / blank"], showIf: a => a.logVisible === "Yes — log is there" },
+      ],
+      "Other": [],
+    };
+
+    function resolveEndpoint(cat, a) {
+      if (cat === "Phone Call") {
+        if (a.connected === "No — never connected" && a.direction?.startsWith("Outbound")) return "phone_outbound_failed";
+        if (a.connected === "No — never connected" && a.direction?.startsWith("Inbound")) return "phone_inbound_failed";
+        if (a.audio === "Advocate can't hear patient (one-way)") return "phone_advocate_cant_hear";
+        if (a.audio === "Patient can't hear advocate") return "phone_patient_cant_hear";
+        if (a.audio === "Poor quality / latency / echo / jitter") return "phone_quality";
+      }
+      if (cat === "Video Visit") {
+        if (a.advProb === "Video not showing") return "video_advocate_video";
+        if (a.advProb === "Audio not working") return "video_advocate_audio";
+        if (a.advProb === "Freezing / can't initiate visit") return "video_freezing";
+        if (a.patProb === "Can't join the visit at all") return "video_patient_cant_join";
+        if (a.patProb === "Joined but their video/audio isn't working") return "video_patient_av";
+        if (a.patProb === "Can't see/hear advocate (advocate appears connected)") return "video_patient_cant_see_advocate";
+      }
+      if (cat === "Fax") {
+        if (a.dir === "Sending — fax is failing") return "fax_send";
+        if (a.dir === "Receiving — fax not arriving") return "fax_receive";
+      }
+      if (cat === "Messaging") {
+        if (a.issue === "Advocate can't send") return "msg_cant_send";
+        if (a.issue === "Patient not receiving" && a.setup === "In-platform only") return "msg_patient_not_receiving_inplatform";
+        if (a.issue === "Patient not receiving") return "msg_patient_not_receiving_sms";
+        if (a.issue === "Patient replied — advocate not receiving") return "msg_reply_not_received";
+        if (a.issue === "UI / inbox problem") return "msg_ui";
+      }
+      if (cat === "Transcript") {
+        if (a.logVisible === "No — nothing there at all") return "transcript_log_missing";
+        if (a.state === "Missing entirely") return "transcript_missing_entirely";
+        if (a.state === "Present but not loading / blank") return "transcript_not_loading";
+      }
+      if (cat === "Other") return "other";
+      return null;
+    }
+
+    function DateTimeInput({ value, onChange }) {
+      const now = new Date();
+      const pad = n => String(n).padStart(2,"0");
+      const toDate = d => `${pad(d.getMonth()+1)}/${pad(d.getDate())}/${d.getFullYear()}`;
+      const toTime = d => { let h=d.getHours(),m=d.getMinutes(),ap=h>=12?"PM":"AM"; h=h%12||12; return `${pad(h)}:${pad(m)} ${ap}`; };
+      const toRaw  = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+      let parsedDate = "", parsedTime = "", parsedTz = "ET";
+      if (value) {
+        const m = value.match(/^(.+?) at (.+?) (\w+)$/);
+        if (m) { parsedDate = m[1]; parsedTime = m[2]; parsedTz = m[3]; }
+      }
+
+      const [date, setDate] = useState(parsedDate || toDate(now));
+      const [timeRaw, setTimeRaw] = useState(toRaw(now));
+      const [timeDisp, setTimeDisp] = useState(parsedTime || toTime(now));
+      const [tz, setTz] = useState(parsedTz);
+
+      const emit = (d, t, z) => onChange(`${d} at ${t} ${z}`);
+      const handleDate = e => {
+        const dig = e.target.value.replace(/\D/g,"").slice(0,8);
+        const out = dig.length>4 ? dig.slice(0,2)+"/"+dig.slice(2,4)+"/"+dig.slice(4) : dig.length>2 ? dig.slice(0,2)+"/"+dig.slice(2) : dig;
+        setDate(out); emit(out, timeDisp, tz);
+      };
+      const handleTime = e => {
+        const raw = e.target.value; setTimeRaw(raw);
+        if (raw) { const [h,m]=raw.split(":"); let hr=parseInt(h); const ap=hr>=12?"PM":"AM"; hr=hr%12||12; const t=`${pad(hr)}:${pad(parseInt(m))} ${ap}`; setTimeDisp(t); emit(date,t,tz); }
+      };
+      const handleTz = e => { setTz(e.target.value); emit(date, timeDisp, e.target.value); };
+      const useNow = () => { const n=new Date(); const d=toDate(n),t=toTime(n); setDate(d); setTimeRaw(toRaw(n)); setTimeDisp(t); emit(d,t,tz); };
+
+      const inp = {width:"100%",padding:"8px 10px",border:"1px solid #d1d5db",borderRadius:7,fontSize:13,fontFamily:"inherit",boxSizing:"border-box",outline:"none"};
+
+      return (
+        <div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <div style={{flex:"1 1 130px"}}>
+              <div style={{fontSize:11,color:"#9ca3af",marginBottom:3}}>Date</div>
+              <input type="text" value={date} onChange={handleDate} placeholder="MM/DD/YYYY" maxLength={10} style={inp}/>
+            </div>
+            <div style={{flex:"1 1 110px"}}>
+              <div style={{fontSize:11,color:"#9ca3af",marginBottom:3}}>Time</div>
+              <input type="time" value={timeRaw} onChange={handleTime} style={inp}/>
+            </div>
+            <div style={{flex:"0 0 90px"}}>
+              <div style={{fontSize:11,color:"#9ca3af",marginBottom:3}}>Timezone</div>
+              <select value={tz} onChange={handleTz} style={{...inp,padding:"8px 6px",cursor:"pointer"}}>
+                {TIMEZONES.map(z => <option key={z} value={z}>{z}</option>)}
+              </select>
+            </div>
+          </div>
+          <button onClick={useNow} style={{marginTop:6,padding:"4px 10px",border:"1px solid #d1d5db",borderRadius:6,background:"#f9fafb",color:"#374151",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>🕐 Use current time</button>
+          {value && <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>→ {value}</div>}
+        </div>
+      );
+    }
+
+    function ScreenshotField({ value, onChange }) {
+      const fileRef = useRef();
+      const handleFile = f => { if(!f)return; const r=new FileReader(); r.onload=e=>onChange({text:`[Screenshot: ${f.name}]`,dataUrl:e.target.result,name:f.name}); r.readAsDataURL(f); };
+      return (
+        <div>
+          <div onClick={()=>fileRef.current.click()}
+            onDrop={e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f&&f.type.startsWith("image/"))handleFile(f);}}
+            onDragOver={e=>e.preventDefault()}
+            style={{border:"2px dashed #d1d5db",borderRadius:8,padding:"0.85rem",textAlign:"center",cursor:"pointer",background:"#fafafa"}}>
+            {value?.dataUrl
+              ? <img src={value.dataUrl} alt={value.name} style={{maxWidth:"100%",maxHeight:120,borderRadius:5,objectFit:"contain"}}/>
+              : <div><div style={{fontSize:18,marginBottom:2}}>📎</div><div style={{fontSize:12,color:"#6b7280"}}>Click or drag & drop to attach</div></div>}
+            <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
+          </div>
+          {value && <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>✓ {value.name} — <span style={{cursor:"pointer",textDecoration:"underline"}} onClick={e=>{e.stopPropagation();onChange(null);}}>Remove</span></div>}
+        </div>
+      );
+    }
+
+    function FaxCodeAdvisory({ code }) {
+      const info = getFaxCodeInfo(code);
+      if (!info) return null;
+      return (
+        <div style={{marginTop:6,padding:"8px 12px",background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:7,fontSize:12,color:"#78350f",lineHeight:1.5}}>
+          <strong>{code} — {info.label}</strong><br/>{info.action}
+        </div>
+      );
+    }
+
+    function UserErrorBanner({ note }) {
+      return (
+        <div style={{background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:10,padding:"0.9rem 1rem",marginBottom:20}}>
+          <div style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#c2410c",marginBottom:5}}>⚠️ Likely user-side issue</div>
+          <div style={{fontSize:13,color:"#7c2d12",lineHeight:1.6}}>{note}</div>
+        </div>
+      );
+    }
+
+    function WarningModal({ step, onProceed, onChangeAnswer, onClose }) {
+      const [reason, setReason] = useState("");
+      return (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,padding:"1rem"}} onClick={onClose}>
+          <div style={{background:"#fff",borderRadius:12,maxWidth:440,width:"100%",padding:"1.5rem",boxShadow:"0 20px 50px rgba(0,0,0,0.3)"}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#dc2626",marginBottom:8}}>⚠️ Likely the issue</div>
+            <div style={{fontSize:14,color:"#111827",lineHeight:1.6,marginBottom:14}}>{step.warning}</div>
+            <div style={{fontSize:12,color:"#6b7280",marginBottom:14,lineHeight:1.5}}>Have the advocate or physician test this before proceeding. If they have, change your answer below. Otherwise, provide a reason and continue.</div>
+
+            <div style={{marginBottom:12}}>
+              <label style={{fontSize:12,fontWeight:500,color:"#374151",display:"block",marginBottom:4}}>Reason for proceeding anyway</label>
+              <textarea value={reason} onChange={e=>setReason(e.target.value)} rows={2}
+                placeholder="e.g. Advocate already tested and confirms it doesn't help..."
+                style={{width:"100%",padding:"8px 10px",border:"1px solid #d1d5db",borderRadius:7,fontSize:13,fontFamily:"inherit",boxSizing:"border-box",outline:"none",resize:"vertical"}}/>
+            </div>
+
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <button onClick={onChangeAnswer} style={{flex:"1 1 auto",padding:"9px 14px",border:"none",borderRadius:7,background:"#3b82f6",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                They tested it — change my answer
+              </button>
+              <button onClick={()=>onProceed(reason)} disabled={!reason.trim()} style={{flex:"1 1 auto",padding:"9px 14px",border:"1px solid #d1d5db",borderRadius:7,background:reason.trim()?"#fff":"#f3f4f6",color:reason.trim()?"#111827":"#9ca3af",fontSize:13,cursor:reason.trim()?"pointer":"not-allowed",fontFamily:"inherit"}}>
+                Proceed with reason
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [screen, setScreen]       = useState("category");
+      const [cat, setCat]             = useState(null);
+      const [answers, setAnswers]     = useState({});
+      const [branchIdx, setBranchIdx] = useState(0);
+      const [tsIdx, setTsIdx]         = useState(0);
+      const [tsResults, setTsResults] = useState([]);
+      const [tsAnswer, setTsAnswer]   = useState("");
+      const [showWarning, setShowWarning] = useState(false);
+      const [escVals, setEscVals]     = useState({});
+      const [guidanceKey, setGuidanceKey] = useState(null);
+      const [copyError, setCopyError] = useState(false);
+      const [copied, setCopied]       = useState(false);
+
+      const tree = cat ? TREES[cat] : [];
+      const visibleBranches = tree.filter(b => !b.showIf || b.showIf(answers));
+      const endpointKey = cat ? resolveEndpoint(cat, answers) : null;
+      const ep = endpointKey ? ENDPOINTS[endpointKey] : null;
+
+      function startCat(c) {
+        setCat(c); setAnswers({}); setBranchIdx(0); setTsIdx(0); setTsResults([]); setTsAnswer(""); setEscVals({});
+        if (TREES[c].length > 0) {
+          setScreen("branch");
+        } else {
+          const epKey = resolveEndpoint(c, {});
+          if (epKey && ENDPOINTS[epKey].troubleshoot.length > 0) setScreen("troubleshoot");
+          else setScreen("escalate");
+        }
+      }
+
+      function pickBranch(key, val) {
+        const newA = {...answers, [key]: val};
+        setAnswers(newA);
+
+        if (key === "twilioFailed" && TWILIO_GUIDANCE_MAP[val]) {
+          setGuidanceKey(TWILIO_GUIDANCE_MAP[val]);
+          setScreen("guidance");
+          return;
+        }
+
+        const nb = TREES[cat].filter(b => !b.showIf || b.showIf(newA));
+        if (branchIdx + 1 < nb.length) setBranchIdx(branchIdx + 1);
+        else {
+          const nextEp = resolveEndpoint(cat, newA);
+          if (nextEp && ENDPOINTS[nextEp].troubleshoot.length > 0) setScreen("troubleshoot");
+          else setScreen("escalate");
+        }
+      }
+
+      function continueFromGuidance() {
+        setGuidanceKey(null);
+        const nb = TREES[cat].filter(b => !b.showIf || b.showIf(answers));
+        if (branchIdx + 1 < nb.length) { setBranchIdx(branchIdx + 1); setScreen("branch"); }
+        else {
+          const nextEp = resolveEndpoint(cat, answers);
+          if (nextEp && ENDPOINTS[nextEp].troubleshoot.length > 0) setScreen("troubleshoot");
+          else setScreen("escalate");
+        }
+      }
+
+      function pickTsAnswer(answer) {
+        const step = ep.troubleshoot[tsIdx];
+        if (answer === step.satisfyOn || step.satisfyOn.includes(answer)) {
+          const newResults = [...tsResults, { q: step.q, answer, reason: null }];
+          setTsResults(newResults);
+          setTsAnswer("");
+          if (tsIdx + 1 < ep.troubleshoot.length) setTsIdx(tsIdx + 1);
+          else setScreen("escalate");
+        } else {
+          setTsAnswer(answer);
+          setShowWarning(true);
+        }
+      }
+
+      function modalProceed(reason) {
+        const step = ep.troubleshoot[tsIdx];
+        const newResults = [...tsResults, { q: step.q, answer: tsAnswer, reason }];
+        setTsResults(newResults);
+        setShowWarning(false);
+        setTsAnswer("");
+        if (tsIdx + 1 < ep.troubleshoot.length) setTsIdx(tsIdx + 1);
+        else setScreen("escalate");
+      }
+
+      function modalChangeAnswer() {
+        setShowWarning(false);
+        setTsAnswer("");
+      }
+
+      function goBack() {
+        if (screen === "done") { setScreen("escalate"); return; }
+        if (screen === "guidance") {
+          setGuidanceKey(null);
+          setScreen("branch");
+          return;
+        }
+        if (screen === "escalate") {
+          if (ep?.troubleshoot.length > 0) {
+            setTsIdx(ep.troubleshoot.length - 1);
+            setTsResults(tsResults.slice(0, -1));
+            setScreen("troubleshoot");
+          } else if (visibleBranches.length > 0) {
+            setBranchIdx(visibleBranches.length - 1);
+            setScreen("branch");
+          } else {
+            setScreen("category"); setCat(null);
+          }
+          return;
+        }
+        if (screen === "troubleshoot") {
+          if (tsIdx > 0) { setTsIdx(tsIdx - 1); setTsResults(tsResults.slice(0, -1)); }
+          else if (visibleBranches.length > 0) { setBranchIdx(visibleBranches.length - 1); setScreen("branch"); }
+          else { setScreen("category"); setCat(null); }
+          return;
+        }
+        if (screen === "branch") {
+          if (branchIdx > 0) setBranchIdx(branchIdx - 1);
+          else { setScreen("category"); setCat(null); }
+        }
+      }
+
+      function setEsc(key, val) { setEscVals(v => ({...v, [key]: val})); }
+      function getEscText(key) { const v = escVals[key]; if (!v) return ""; return typeof v === "string" ? v : v.text || ""; }
+
+      function buildTicket() {
+        if (!ep) return "";
+        const escText = Object.fromEntries(ep.escalate.map(f => [f.key, getEscText(f.key)]));
+        const summary = ep.summary({ answers, tsResults }, escText);
+        const branchLog = visibleBranches.map(b => `${b.q}\n→ ${answers[b.key] || "—"}`).join("\n\n");
+        const tsLog = tsResults.length > 0
+          ? tsResults.map(r => `${r.q}\n→ ${r.answer}${r.reason ? `\n   Reason for proceeding: ${r.reason}` : ""}`).join("\n\n")
+          : "(no troubleshooting steps required)";
+        const escLog = ep.escalate
+          .filter(f => {
+            const v = getEscText(f.key);
+            return v || (f.type === "screenshot" && escVals[f.key]?.dataUrl);
+          })
+          .map(f => `${f.label}\n→ ${getEscText(f.key) || (escVals[f.key]?.dataUrl ? `[Screenshot: ${escVals[f.key].name}]` : "—")}`)
+          .join("\n\n") || "(no fields filled in)";
+        const extras = (escVals.__extraShots || []).filter(s => s?.dataUrl);
+        const extraLog = extras.length > 0
+          ? `\n\nAdditional screenshots\n→ ${extras.map(s => `[Screenshot: ${s.name}]`).join(", ")}`
+          : "";
+        return `## Summary\n\n${summary}\n\n---\n\n## Decision Path\n\n${branchLog || "(none)"}\n\n---\n\n## Troubleshooting Info\n\n${tsLog}\n\n---\n\n## Ticket Details\n\n${escLog}${extraLog}`;
+      }
+
+      function getTitle() {
+        if (!ep) return "";
+        const custom = (escVals.__customTitle || "").trim();
+        if (custom) return custom;
+        const escText = Object.fromEntries(ep.escalate.map(f => [f.key, getEscText(f.key)]));
+        return ep.title(escText);
+      }
+
+      function copyTicket() {
+        const text = `Title: ${getTitle()}\n\n${buildTicket()}`;
+        const success = () => { setCopied(true); setCopyError(false); setTimeout(() => setCopied(false), 2000); };
+        const failure = () => { setCopyError(true); setTimeout(() => setCopyError(false), 4000); };
+
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(success).catch(() => fallbackCopy(text, success, failure));
+        } else {
+          fallbackCopy(text, success, failure);
+        }
+      }
+
+      function fallbackCopy(text, onSuccess, onFailure) {
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.style.position = "fixed";
+          ta.style.top = "-9999px";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          const ok = document.execCommand("copy");
+          document.body.removeChild(ta);
+          if (ok) onSuccess(); else onFailure();
+        } catch (e) {
+          onFailure();
+        }
+      }
+
+      function reset() { setScreen("category"); setCat(null); setAnswers({}); setBranchIdx(0); setTsIdx(0); setTsResults([]); setTsAnswer(""); setEscVals({}); setGuidanceKey(null); }
+
+      const totalSteps = visibleBranches.length + (ep?.troubleshoot.length || 0) + 1;
+      let currentStep = 0;
+      if (screen === "branch") currentStep = branchIdx;
+      else if (screen === "troubleshoot") currentStep = visibleBranches.length + tsIdx;
+      else if (screen === "escalate") currentStep = totalSteps - 1;
+      else if (screen === "done") currentStep = totalSteps;
+      const progress = screen === "category" ? 2 : screen === "done" ? 100 : Math.round((currentStep / totalSteps) * 93) + 4;
+
+      const col = cat ? CAT_COLORS[cat] : null;
+      const pill = col && <span style={{display:"inline-block",padding:"3px 10px",borderRadius:6,fontSize:12,fontWeight:500,marginBottom:"1.25rem",background:col.bg,color:col.text,border:`1px solid ${col.border}`}}>{cat}</span>;
+      const backBtn = <button onClick={goBack} style={{fontSize:13,color:"#6b7280",background:"none",border:"none",cursor:"pointer",padding:0,marginBottom:"1.25rem",display:"block",fontFamily:"inherit"}}>← Back</button>;
+      const btn = (onClick, label, style={}) => <button onClick={onClick} style={{padding:"9px 18px",border:"1px solid #d1d5db",borderRadius:8,background:"#fff",color:"#111827",fontSize:14,cursor:"pointer",fontFamily:"inherit",...style}}>{label}</button>;
+
+      const tsStep = ep?.troubleshoot[tsIdx];
+
+      return (
+        <div style={{maxWidth:560,margin:"0 auto",padding:"1.5rem 1rem 6rem",fontFamily:"system-ui,-apple-system,sans-serif",position:"relative",minHeight:"100vh"}}>
+
+          <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#fef3c7",borderTop:"1px solid #fbbf24",padding:"8px 16px",textAlign:"center",fontSize:12,color:"#78350f",fontWeight:500,zIndex:50}}>
+            ⚠️ Do not enter PHI
+          </div>
+
+          <div style={{height:3,background:"#e5e7eb",borderRadius:2,marginBottom:"2rem"}}>
+            <div style={{height:3,background:"#3b82f6",borderRadius:2,width:`${progress}%`,transition:"width 0.3s"}}/>
+          </div>
+
+          {showWarning && tsStep && (
+            <WarningModal step={tsStep} onProceed={modalProceed} onChangeAnswer={modalChangeAnswer} onClose={modalChangeAnswer} />
+          )}
+
+          {screen === "category" && (
+            <div>
+              <div style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",color:"#9ca3af",marginBottom:6}}>Step 1</div>
+              <div style={{fontSize:18,fontWeight:600,color:"#111827",marginBottom:16}}>What type of issue is this?</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>{CATEGORIES.map(c => btn(() => startCat(c), c))}</div>
+            </div>
+          )}
+
+          {screen === "branch" && visibleBranches[branchIdx] && (
+            <div>
+              {backBtn}{pill}
+              <div style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",color:"#9ca3af",marginBottom:6}}>
+                Question {branchIdx + 1} of {visibleBranches.length}
+              </div>
+              <div style={{fontSize:18,fontWeight:600,color:"#111827",marginBottom:visibleBranches[branchIdx].hint?6:16,lineHeight:1.4}}>{visibleBranches[branchIdx].q}</div>
+              {visibleBranches[branchIdx].hint && <div style={{fontSize:13,color:"#6b7280",marginBottom:14,lineHeight:1.5}}>{visibleBranches[branchIdx].hint}</div>}
+              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                {visibleBranches[branchIdx].opts.map(o => btn(() => pickBranch(visibleBranches[branchIdx].key, o), o))}
+              </div>
+            </div>
+          )}
+
+          {screen === "guidance" && guidanceKey && GUIDANCE[guidanceKey] && (() => {
+            const g = GUIDANCE[guidanceKey];
+            return (
+              <div>
+                {backBtn}{pill}
+                <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:10,padding:"1.25rem",marginBottom:16}}>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#b45309",marginBottom:6}}>🔧 Troubleshooting guidance</div>
+                  <div style={{fontSize:18,fontWeight:600,color:"#78350f",marginBottom:4,lineHeight:1.3}}>{g.title}</div>
+                  <div style={{fontSize:13,color:"#92400e",fontStyle:"italic",marginBottom:12}}>{g.severity}</div>
+                  <div style={{fontSize:13,color:"#78350f",lineHeight:1.6,marginBottom:14}}>{g.description}</div>
+
+                  <div style={{fontSize:12,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",color:"#b45309",marginBottom:8}}>Recommended steps</div>
+                  <ol style={{margin:0,paddingLeft:20,fontSize:13,color:"#78350f",lineHeight:1.7}}>
+                    {g.steps.map((s,i) => <li key={i} style={{marginBottom:4}}>{s}</li>)}
+                  </ol>
+
+                  {g.note && (
+                    <div style={{marginTop:14,padding:"10px 12px",background:"#fef3c7",borderRadius:7,fontSize:12,color:"#78350f",lineHeight:1.5}}>
+                      <strong>Note:</strong> {g.note}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{fontSize:13,color:"#6b7280",marginBottom:12,lineHeight:1.5}}>If the advocate hasn't completed these steps yet, have them try first. If they've tried and the issue persists, continue to log a ticket.</div>
+
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <button onClick={continueFromGuidance} style={{padding:"10px 22px",border:"none",borderRadius:8,background:"#3b82f6",color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Continue to ticket →</button>
+                  <button onClick={reset} style={{padding:"10px 22px",border:"1px solid #d1d5db",borderRadius:8,background:"#fff",color:"#374151",fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>Cancel — no ticket needed</button>
+                </div>
+              </div>
+            );
+          })()}
+
+          {screen === "troubleshoot" && tsStep && (
+            <div>
+              {backBtn}{pill}
+              {ep.userError && <UserErrorBanner note={ep.userErrorNote} />}
+              <div style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.07em",color:"#9ca3af",marginBottom:6}}>
+                Troubleshooting {tsIdx + 1} of {ep.troubleshoot.length}
+              </div>
+              <div style={{fontSize:17,fontWeight:600,color:"#111827",marginBottom:14,lineHeight:1.4}}>{tsStep.q}</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                {btn(() => pickTsAnswer("Yes"), "Yes")}
+                {btn(() => pickTsAnswer("No"), "No")}
+                {btn(() => pickTsAnswer("Unknown"), "Unknown")}
+                {tsStep.satisfyOn.includes("All") && btn(() => pickTsAnswer("All"), "All")}
+                {tsStep.satisfyOn.includes("N/A") && btn(() => pickTsAnswer("N/A"), "N/A")}
+                {tsStep.q.toLowerCase().includes("all patients") && btn(() => pickTsAnswer("Just one"), "Just one")}
+              </div>
+            </div>
+          )}
+
+          {screen === "escalate" && ep && (
+            <div>
+              {backBtn}{pill}
+              <div style={{fontSize:17,fontWeight:600,color:"#111827",marginBottom:4}}>Ticket details</div>
+              <div style={{fontSize:13,color:"#6b7280",marginBottom:20}}>Fill in what the guide requires for this issue type. All fields optional.</div>
+
+              <div style={{marginBottom:16}}>
+                <label style={{display:"block",fontSize:13,fontWeight:500,color:"#374151",marginBottom:4}}>Ticket title</label>
+                <div style={{fontSize:12,color:"#9ca3af",marginBottom:5,lineHeight:1.5}}>Override the auto-generated title. Leave blank to use the default.</div>
+                <input type="text" value={escVals.__customTitle||""} onChange={e=>setEsc("__customTitle", e.target.value)}
+                  placeholder={ep.title(Object.fromEntries(ep.escalate.map(f => [f.key, getEscText(f.key)])))}
+                  style={{width:"100%",padding:"9px 11px",border:"1px solid #d1d5db",borderRadius:8,fontSize:14,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
+              </div>
+
+              {ep.escalate.map(f => (
+                <div key={f.key} style={{marginBottom:16}}>
+                  <label style={{display:"block",fontSize:13,fontWeight:500,color:"#374151",marginBottom:4}}>{f.label}</label>
+                  {f.hint && <div style={{fontSize:12,color:"#9ca3af",marginBottom:5,lineHeight:1.5}}>{f.hint}</div>}
+                  {f.type === "textarea" && (
+                    <div style={{fontSize:11,color:"#b45309",marginBottom:5,lineHeight:1.4,padding:"4px 8px",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:5}}>
+                      ⚠️ Do not enter PHI. Reference the patient by ID only.
+                    </div>
+                  )}
+                  {f.type === "text" && (
+                    <>
+                      <input type="text" value={escVals[f.key]||""} onChange={e=>setEsc(f.key, e.target.value)}
+                        style={{width:"100%",padding:"9px 11px",border:"1px solid #d1d5db",borderRadius:8,fontSize:14,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
+                      {f.key === "errCode" && <FaxCodeAdvisory code={escVals[f.key]} />}
+                    </>
+                  )}
+                  {f.type === "textarea" && (
+                    <textarea value={escVals[f.key]||""} onChange={e=>setEsc(f.key, e.target.value)} rows={3}
+                      style={{width:"100%",padding:"9px 11px",border:"1px solid #d1d5db",borderRadius:8,fontSize:14,fontFamily:"inherit",boxSizing:"border-box",outline:"none",resize:"vertical"}}/>
+                  )}
+                  {f.type === "datetime" && <DateTimeInput value={escVals[f.key]||""} onChange={v=>setEsc(f.key, v)}/>}
+                  {f.type === "screenshot" && <ScreenshotField value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)}/>}
+                </div>
+              ))}
+
+              <div style={{marginBottom:16}}>
+                <label style={{display:"block",fontSize:13,fontWeight:500,color:"#374151",marginBottom:4}}>Additional screenshots</label>
+                <div style={{fontSize:12,color:"#9ca3af",marginBottom:5,lineHeight:1.5}}>Attach any additional screenshots that may help engineering (UI, error messages, etc.)</div>
+                {(escVals.__extraShots || []).map((s, i) => (
+                  <div key={i} style={{marginBottom:8,border:"1px solid #e5e7eb",borderRadius:8,padding:8,background:"#f9fafb"}}>
+                    <ScreenshotField value={s} onChange={v => {
+                      const arr = [...(escVals.__extraShots || [])];
+                      if (v === null) arr.splice(i, 1);
+                      else arr[i] = v;
+                      setEsc("__extraShots", arr);
+                    }} />
+                  </div>
+                ))}
+                <button onClick={() => {
+                  const arr = [...(escVals.__extraShots || []), null];
+                  setEsc("__extraShots", arr);
+                }} style={{padding:"7px 14px",border:"1px dashed #d1d5db",borderRadius:8,background:"#fff",color:"#374151",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                  + Add screenshot
+                </button>
+              </div>
+
+              <button onClick={()=>setScreen("done")} style={{marginTop:8,padding:"10px 24px",border:"none",borderRadius:8,background:"#3b82f6",color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                Generate ticket →
+              </button>
+            </div>
+          )}
+
+          {screen === "done" && ep && (
+            <div>
+              <div style={{marginBottom:"1rem"}}>
+                <div style={{fontSize:17,fontWeight:600,color:"#111827",marginBottom:4}}>✓ Ticket ready</div>
+                <div style={{fontSize:13,color:"#6b7280"}}>Title: <strong>{getTitle()}</strong></div>
+                <div style={{fontSize:13,color:"#6b7280",marginTop:2}}>Paste into the Linear description.</div>
+              </div>
+
+              <div style={{background:"#f9fafb",borderRadius:10,border:"1px solid #e5e7eb",padding:"1.25rem",fontFamily:"ui-monospace,monospace",fontSize:12,color:"#111827",whiteSpace:"pre-wrap",lineHeight:1.7,maxHeight:380,overflowY:"auto"}}>
+                {buildTicket()}
+              </div>
+
+              <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap",alignItems:"center"}}>
+                {btn(copyTicket, copied ? "✓ Copied!" : copyError ? "Copy failed — select text above" : "Copy to clipboard", copyError ? {borderColor:"#ef4444",color:"#ef4444"} : {})}
+                {btn(reset, "Start a new ticket")}
+              </div>
+
+              {(() => {
+                const shots = ep.escalate.filter(f => f.type === "screenshot" && escVals[f.key]?.dataUrl).map(f => ({label: f.label, ...escVals[f.key]}));
+                const extras = (escVals.__extraShots || []).filter(s => s?.dataUrl).map((s, i) => ({label: `Additional screenshot ${i+1}`, ...s}));
+                const allShots = [...shots, ...extras];
+                if (allShots.length === 0) return null;
+                return (
+                  <div style={{marginTop:24}}>
+                    <div style={{fontSize:13,fontWeight:600,color:"#374151",marginBottom:10}}>📎 Attached screenshots — drag into Linear</div>
+                    {allShots.map((s,i) => (
+                      <div key={i} style={{border:"1px solid #e5e7eb",borderRadius:10,overflow:"hidden",background:"#f9fafb",marginBottom:12}}>
+                        <div style={{padding:"8px 12px",fontSize:12,color:"#6b7280",borderBottom:"1px solid #e5e7eb"}}>{s.label}</div>
+                        <img src={s.dataUrl} alt={s.name} style={{width:"100%",display:"block",maxHeight:250,objectFit:"contain",background:"#fff"}}/>
+                        <div style={{padding:"6px 12px",fontSize:11,color:"#9ca3af"}}>{s.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
