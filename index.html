@@ -15,7 +15,7 @@
 <body>
   <div id="root"></div>
   <script type="text/babel" data-presets="env,react">
-    const { useState, useRef, useEffect } = React;
+    const { useState, useRef } = React;
 
     const CAT_COLORS = {
       "Phone Call": { bg: "#e6f1fb", text: "#185fa5", border: "#b5d4f4" },
@@ -26,7 +26,6 @@
       "Other":      { bg: "#f1efe8", text: "#5f5e5a", border: "#d3d1c7" },
     };
     const CATEGORIES = ["Phone Call", "Video Visit", "Fax", "Messaging", "Transcript", "Other"];
-
     const TIMEZONES = ["ET", "CT", "MT", "PT", "AKT", "HT", "Other"];
 
     const FAX_CODE_INFO = {
@@ -109,6 +108,11 @@
       "Multiple categories": "twilio_multiple",
     };
 
+    // Field types:
+    //   text, textarea, screenshot, datetime
+    //   datetime_multi          — phone/messaging/other: timestamps + per-slot patient ID (when multi)
+    //   datetime_multi_visit    — video/transcript: timestamps + visit ID (always) + per-slot patient ID (when multi)
+
     const ENDPOINTS = {
       "phone_outbound_failed": {
         troubleshoot: [
@@ -126,13 +130,12 @@
           { key: "notes",      label: "Additional notes", type: "textarea" },
         ],
         title: () => "CX RQ — [Phone Call | BUG]",
-        summary: (ctx, esc) => {
+        summary: (ctx) => {
           const f = ctx?.answers?.twilioFailed;
           const tw = f ? ` Twilio failures: ${f}.` : "";
           return `Outbound call failed to connect.${tw} Troubleshooting performed; escalating with Twilio test for log investigation.`;
         },
       },
-
       "phone_inbound_failed": {
         troubleshoot: [
           { id: "dnd", q: "Is Do Not Disturb / Vacation disabled in Solace?", satisfyOn: "Yes", warning: "DND or Vacation mode can block inbound calls from ringing. Have the advocate disable it and test by calling from the CX line before escalating." },
@@ -151,7 +154,6 @@
         title: () => "CX RQ — [Phone Call | BUG]",
         summary: () => `Inbound call not ringing for advocate. DND and personal phone settings checked; escalating for forwarding investigation.`,
       },
-
       "phone_advocate_cant_hear": {
         troubleshoot: [
           { id: "speed",  q: "Did the advocate run a speed test and meet minimums (≥10 down, ≥5 up, <100ms)?", satisfyOn: "Yes", warning: "Below-target internet speeds are the most common cause of one-way audio. Have the advocate move closer to the router or switch to wired ethernet, then retest before escalating." },
@@ -170,13 +172,12 @@
           { key: "notes",      label: "Additional notes", type: "textarea" },
         ],
         title: () => "CX RQ — [Phone Call | BUG]",
-        summary: (ctx, esc) => {
+        summary: (ctx) => {
           const f = ctx?.answers?.twilioFailed;
           const tw = f ? ` Twilio failures: ${f}.` : "";
           return `Advocate can't hear patient (one-way audio) on connected call.${tw} All troubleshooting steps performed; escalating with network screenshots.`;
         },
       },
-
       "phone_patient_cant_hear": {
         troubleshoot: [
           { id: "speed",     q: "Did the advocate run a speed test and meet minimums (≥10 down, ≥5 up, <100ms)?", satisfyOn: "Yes", warning: "Below-target speeds can cause one-way audio. Have advocate move closer to router or switch to wired before escalating." },
@@ -198,13 +199,12 @@
           { key: "notes",      label: "Additional notes", type: "textarea" },
         ],
         title: () => "CX RQ — [Phone Call | BUG]",
-        summary: (ctx, esc) => {
+        summary: (ctx) => {
           const f = ctx?.answers?.twilioFailed;
           const tw = f ? ` Twilio failures: ${f}.` : "";
           return `Patient can't hear advocate on connected call.${tw} Full troubleshooting performed; escalating with network details.`;
         },
       },
-
       "phone_quality": {
         troubleshoot: [
           { id: "speed",     q: "Did the speed test (run during the call) meet targets? (≥10 down, ≥5 up, <100ms)", satisfyOn: "Yes", warning: "Below-target speeds are a network issue, not a Solace issue. Have the advocate move closer to the router or switch to wired ethernet before escalating." },
@@ -224,7 +224,7 @@
           { key: "notes",      label: "Additional notes", type: "textarea" },
         ],
         title: () => "CX RQ — [Phone Call | BUG]",
-        summary: (ctx, esc) => {
+        summary: (ctx) => {
           const f = ctx?.answers?.twilioFailed;
           const tw = f ? ` Twilio failures: ${f}.` : "";
           return `Poor call quality / latency.${tw} All network troubleshooting performed; escalating with Twilio + speed test screenshots.`;
@@ -242,7 +242,7 @@
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate / physician name", type: "text" },
           { key: "patient",  label: "Patient ID(s)", type: "text" },
-          { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
+          { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_visit" },
           { key: "browser",  label: "Browser", type: "text" },
           { key: "device",   label: "Advocate device", type: "text" },
           { key: "freq",     label: "Frequency", type: "text", hint: "Consistent / Intermittent" },
@@ -252,7 +252,6 @@
         title: () => "CX RQ — [Video Visit | BUG]",
         summary: () => `Advocate/physician video not showing. All troubleshooting performed; escalating with visit ID for engineering.`,
       },
-
       "video_advocate_audio": {
         troubleshoot: [
           { id: "micPerm",   q: "Are microphone permissions confirmed enabled in the browser for both advocate and patient?", satisfyOn: "Yes", warning: "Mic permissions need to be confirmed for both sides. Have them re-enable explicitly before escalating." },
@@ -264,7 +263,7 @@
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
           { key: "patient",  label: "Patient ID(s)", type: "text" },
-          { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
+          { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_visit" },
           { key: "browser",  label: "Browser", type: "text" },
           { key: "os",       label: "OS", type: "text" },
           { key: "freq",     label: "Frequency", type: "text" },
@@ -274,7 +273,6 @@
         title: () => "CX RQ — [Video Visit | BUG]",
         summary: () => `Advocate/physician audio not working in video visit. All troubleshooting performed.`,
       },
-
       "video_freezing": {
         troubleshoot: [
           { id: "speed",    q: "Did the speed test (run during the visit) meet targets? (≥10 down, ≥5 up, <100ms)", satisfyOn: "Yes", warning: "Below-target speeds cause freezing. Have the advocate move closer to the router or switch to wired ethernet, then retest before escalating." },
@@ -285,7 +283,7 @@
           { key: "ticket",    label: "Zendesk ticket #", type: "text" },
           { key: "advocate",  label: "Advocate name", type: "text" },
           { key: "patient",   label: "Patient ID(s)", type: "text" },
-          { key: "datetime",  label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
+          { key: "datetime",  label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_visit" },
           { key: "what",      label: "What specifically froze or failed?", type: "textarea" },
           { key: "browser",   label: "Browser & OS", type: "text" },
           { key: "speedShot", label: "Speed test screenshot", type: "screenshot" },
@@ -296,7 +294,6 @@
         title: () => "CX RQ — [Video Visit | BUG]",
         summary: () => `Video visit freezing / can't initiate. Speed and resource troubleshooting performed; escalating.`,
       },
-
       "video_patient_cant_join": {
         userError: true,
         userErrorNote: "Patient can't join — most often a setup issue (didn't get the link, clicked too early, unsupported device). The questions below confirm those before escalating.",
@@ -309,18 +306,17 @@
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
           { key: "patient",  label: "Patient ID(s)", type: "text" },
-          { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
+          { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_visit" },
           { key: "patSees",  label: "What does the patient see when clicking the link?", type: "textarea" },
           { key: "errMsg",   label: "Exact error message text (if any)", type: "text" },
           { key: "patDevice",label: "Patient device & browser", type: "text" },
-          { key: "freq",     label: "Frequency", type: "text", hint: "Consistent / Intermittent", },
+          { key: "freq",     label: "Frequency", type: "text", hint: "Consistent / Intermittent" },
           { key: "whoAffected", label: "One / Some / All patients?", type: "text" },
           { key: "notes",    label: "Additional notes / Jam links", type: "textarea" },
         ],
         title: () => "CX RQ — [Video Visit | BUG]",
         summary: () => `Patient can't join video visit. Setup checks performed; link opens but patient is stuck — escalating.`,
       },
-
       "video_patient_av": {
         userError: true,
         userErrorNote: "Patient-side A/V issues are most often user error. Confirm permissions and rejoin before escalating to product.",
@@ -332,17 +328,16 @@
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
           { key: "patient",  label: "Patient ID(s)", type: "text" },
-          { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
+          { key: "datetime", label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_visit" },
           { key: "what",     label: "What did the patient see/hear?", type: "textarea" },
           { key: "patDevice",label: "Patient device type", type: "text" },
-          { key: "freq",     label: "Frequency", type: "text", hint: "Consistent / Intermittent", },
+          { key: "freq",     label: "Frequency", type: "text", hint: "Consistent / Intermittent" },
           { key: "whoAffected", label: "One / Some / All patients?", type: "text" },
           { key: "notes",    label: "Additional notes / Jam links", type: "textarea" },
         ],
         title: () => "CX RQ — [Video Visit | BUG]",
         summary: () => `Patient-side video/audio issue. Permissions confirmed and rejoined; issue persists — escalating.`,
       },
-
       "video_patient_cant_see_advocate": {
         troubleshoot: [
           { id: "advWorks", q: "Confirmed the advocate's camera and mic are working on their end?", satisfyOn: "Yes", warning: "Confirm advocate's side is functional first — otherwise the issue may be with their setup, not the patient's." },
@@ -352,10 +347,10 @@
           { key: "ticket",    label: "Zendesk ticket #", type: "text" },
           { key: "advocate",  label: "Advocate name", type: "text" },
           { key: "patient",   label: "Patient ID(s)", type: "text" },
-          { key: "datetime",  label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_video" },
+          { key: "datetime",  label: "Visit timestamp(s) (with timezone)", type: "datetime_multi_visit" },
           { key: "patSees",   label: "What does the patient see/hear?", type: "textarea", hint: "Blank screen / spinner / error — get exact text" },
           { key: "patDevice", label: "Patient device type", type: "text" },
-          { key: "freq",      label: "Frequency", type: "text", hint: "Consistent / Intermittent", },
+          { key: "freq",      label: "Frequency", type: "text", hint: "Consistent / Intermittent" },
           { key: "whoAffected", label: "One / Some / All patients?", type: "text" },
           { key: "notes",     label: "Additional notes / Jam links", type: "textarea" },
         ],
@@ -383,12 +378,11 @@
           { key: "notes",     label: "Additional notes", type: "textarea" },
         ],
         title: () => "CX RQ — [Fax | BUG]",
-        summary: (ts, esc) => {
+        summary: (ctx, esc) => {
           const info = getFaxCodeInfo(esc.errCode);
           return info ? `Fax send failure — ${esc.errCode} (${info.label}). ${info.action}` : `Fax send failure. Code: ${esc.errCode || "not captured"}. Pre-escalation checks performed.`;
         },
       },
-
       "fax_receive": {
         troubleshoot: [
           { id: "rightNum", q: "Did the sender have the correct Solace fax number for this advocate?", satisfyOn: "Yes", warning: "Verify the sender used the right Solace fax number first. Wrong number = fax went elsewhere, not a Solace issue." },
@@ -427,7 +421,6 @@
         title: () => "CX RQ — [Messaging | BUG]",
         summary: () => `Advocate unable to send message. Refresh, eligibility, and SMS limits checked.`,
       },
-
       "msg_patient_not_receiving_inplatform": {
         troubleshoot: [
           { id: "showsSent", q: "Does the message appear as sent in the advocate's inbox?", satisfyOn: "Yes", warning: "If the message doesn't show as sent on the advocate's side, the issue is with sending — not receiving. Re-classify this ticket as \"Advocate can't send\"." },
@@ -444,7 +437,6 @@
         title: () => "CX RQ — [Messaging | BUG]",
         summary: () => `Patient not receiving in-platform messages. Sent status confirmed, patient logged in. See COM-1724.`,
       },
-
       "msg_patient_not_receiving_sms": {
         troubleshoot: [
           { id: "showsSent", q: "Does the message appear as sent in the advocate's inbox?", satisfyOn: "Yes", warning: "If not sent on advocate's side, this is a send issue — re-classify the ticket." },
@@ -462,7 +454,6 @@
         title: () => "CX RQ — [Messaging | BUG]",
         summary: () => `Patient not receiving SMS messages. Contact + filter checks done. SMS may have failed but should still deliver via portal — confirm.`,
       },
-
       "msg_reply_not_received": {
         troubleshoot: [
           { id: "patSent", q: "Does the patient see their reply as sent on their end?", satisfyOn: "Yes", warning: "If the patient doesn't see their reply as sent, it never went through — this is a patient-side send issue, not an advocate-side receive issue." },
@@ -479,7 +470,6 @@
         title: () => "CX RQ — [Messaging | BUG]",
         summary: () => `Advocate not receiving patient replies. Patient confirms sent on their end. See COM-1724, COM-2017.`,
       },
-
       "msg_ui": {
         troubleshoot: [
           { id: "refreshed",   q: "Did the advocate hard-refresh (Cmd+Shift+R / Ctrl+Shift+R)?", satisfyOn: "Yes", warning: "Hard-refresh resolves many UI issues. Have the advocate try before escalating." },
@@ -507,7 +497,7 @@
           { key: "ticket",      label: "Zendesk ticket #", type: "text" },
           { key: "advocate",    label: "Advocate name", type: "text" },
           { key: "patient",     label: "Patient ID(s)", type: "text" },
-          { key: "datetime",    label: "Call timestamp(s) (with timezone)", type: "datetime_multi_video" },
+          { key: "datetime",    label: "Call timestamp(s) (with timezone)", type: "datetime_multi_visit" },
           { key: "callType",    label: "Call type", type: "text", hint: "Phone Call / Video Visit" },
           { key: "sched",       label: "Impromptu or scheduled?", type: "text" },
           { key: "callDur",     label: "Approximate call duration", type: "text" },
@@ -518,7 +508,6 @@
         title: () => "CX RQ — [Transcript | BUG]",
         summary: () => `Call log AND transcript both missing — significant pipeline failure. 30-min refresh wait confirmed; escalating.`,
       },
-
       "transcript_missing_entirely": {
         troubleshoot: [
           { id: "allRetries",  q: "Has the advocate exhausted all 3 manual retries via the Retry button?", satisfyOn: "Yes", warning: "Advocate must use all 3 manual retries before escalating. The platform first auto-retries 3× (5 min apart), then exposes 3 manual retries. Hold the ticket until exhausted." },
@@ -528,7 +517,7 @@
           { key: "ticket",      label: "Zendesk ticket #", type: "text" },
           { key: "advocate",    label: "Advocate name", type: "text" },
           { key: "patient",     label: "Patient ID(s)", type: "text" },
-          { key: "datetime",    label: "Call timestamp(s) (with timezone)", type: "datetime_multi_video" },
+          { key: "datetime",    label: "Call timestamp(s) (with timezone)", type: "datetime_multi_visit" },
           { key: "callType",    label: "Call type", type: "text", hint: "Phone Call / Video Visit" },
           { key: "sched",       label: "Impromptu or scheduled?", type: "text" },
           { key: "callDur",     label: "Approximate call duration", type: "text" },
@@ -539,7 +528,6 @@
         title: () => "CX RQ — [Transcript | BUG]",
         summary: () => `Transcript missing entirely. All retries exhausted, Report a Problem used. Escalating for transcript pipeline investigation.`,
       },
-
       "transcript_not_loading": {
         troubleshoot: [
           { id: "refreshed",   q: "Did the advocate hard-refresh (Cmd+Shift+R / Ctrl+Shift+R)?", satisfyOn: "Yes", warning: "Hard-refresh resolves many transcript display issues. Have the advocate try before escalating." },
@@ -549,7 +537,7 @@
           { key: "ticket",   label: "Zendesk ticket #", type: "text" },
           { key: "advocate", label: "Advocate name", type: "text" },
           { key: "patient",  label: "Patient ID(s)", type: "text" },
-          { key: "datetime", label: "Call timestamp(s) (with timezone)", type: "datetime_multi_video" },
+          { key: "datetime", label: "Call timestamp(s) (with timezone)", type: "datetime_multi_visit" },
           { key: "scope",    label: "All transcripts or just this one?", type: "text" },
           { key: "device",   label: "Browser & device", type: "text" },
           { key: "notes",    label: "Additional notes", type: "textarea" },
@@ -571,7 +559,7 @@
           { key: "errShot",  label: "Screenshot of error or unexpected UI", type: "screenshot" },
         ],
         title: (esc) => `CX RQ — [${esc.title || "Issue"} | NEEDS TRIAGE]`,
-        summary: (ts, esc) => `Unclassified: "${esc.title}". ${esc.desc}`,
+        summary: (ctx, esc) => `Unclassified: "${esc.title}". ${esc.desc}`,
       },
     };
 
@@ -638,65 +626,6 @@
       return null;
     }
 
-    function MultiDateTimeInput({ value, onChange }) {
-      const nowStr = () => {
-        const now = new Date();
-        const pad = n => String(n).padStart(2,"0");
-        const d = `${pad(now.getMonth()+1)}/${pad(now.getDate())}/${now.getFullYear()}`;
-        let h = now.getHours(), m = now.getMinutes(), ap = h>=12?"PM":"AM"; h = h%12||12;
-        return `${d} at ${pad(h)}:${pad(m)} ${ap} ET`;
-      };
-
-      // Initialize default first slot with current datetime so it never starts empty
-      const list = Array.isArray(value) && value.length > 0 ? value : [{ datetime: nowStr(), patient: "" }];
-      const multi = list.length > 1;
-
-      // If we just initialized a default, push it up so it persists in state
-      useEffect(() => {
-        if (!value || !Array.isArray(value) || value.length === 0) {
-          onChange(list);
-        }
-      }, []);
-
-      const updateItem = (i, key, v) => {
-        const next = list.map((it, idx) => idx === i ? { ...it, [key]: v } : it);
-        onChange(next);
-      };
-      const addItem = () => {
-        onChange([...list, { datetime: nowStr(), patient: "" }]);
-      };
-      const removeItem = (i) => {
-        const next = list.filter((_, idx) => idx !== i);
-        onChange(next.length ? next : [{ datetime: nowStr(), patient: "" }]);
-      };
-
-      return (
-        <div>
-          {list.map((item, i) => (
-            <div key={i} style={{marginBottom:10,padding: multi ? 10 : 0, border: multi ? "1px solid #e5e7eb" : "none", borderRadius:8, background: multi ? "#f9fafb" : "transparent"}}>
-              {multi && (
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                  <div style={{fontSize:11,fontWeight:600,color:"#6b7280"}}>Call #{i+1}</div>
-                  <button onClick={() => removeItem(i)} style={{background:"none",border:"none",fontSize:11,color:"#ef4444",cursor:"pointer",fontFamily:"inherit"}}>Remove</button>
-                </div>
-              )}
-              <DateTimeInput value={item.datetime} onChange={v => updateItem(i, "datetime", v)} />
-              {multi && (
-                <div style={{marginTop:8}}>
-                  <div style={{fontSize:11,color:"#9ca3af",marginBottom:3}}>Patient ID for this call</div>
-                  <input type="text" value={item.patient || ""} onChange={e => updateItem(i, "patient", e.target.value)}
-                    style={{width:"100%",padding:"8px 10px",border:"1px solid #d1d5db",borderRadius:7,fontSize:13,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
-                </div>
-              )}
-            </div>
-          ))}
-          <button onClick={addItem} style={{marginTop:4,padding:"6px 12px",border:"1px dashed #d1d5db",borderRadius:7,background:"#fff",color:"#374151",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
-            + Add another timestamp
-          </button>
-        </div>
-      );
-    }
-
     function DateTimeInput({ value, onChange }) {
       const now = new Date();
       const pad = n => String(n).padStart(2,"0");
@@ -754,6 +683,74 @@
       );
     }
 
+    function MultiDateTimeInput({ value, onChange, withVisitId }) {
+      const nowStr = () => {
+        const now = new Date();
+        const pad = n => String(n).padStart(2,"0");
+        const d = `${pad(now.getMonth()+1)}/${pad(now.getDate())}/${now.getFullYear()}`;
+        let h = now.getHours(), m = now.getMinutes(), ap = h>=12?"PM":"AM"; h = h%12||12;
+        return `${d} at ${pad(h)}:${pad(m)} ${ap} ET`;
+      };
+
+      const list = Array.isArray(value) && value.length > 0 ? value : [{ datetime: "", patient: "", visitId: "", touched: false }];
+      const multi = list.length > 1;
+      const itemLabel = withVisitId ? "Visit" : "Call";
+
+      const updateItem = (i, key, v) => {
+        const next = list.map((it, idx) => idx === i ? { ...it, [key]: v, touched: true } : it);
+        onChange(next);
+      };
+      const addItem = () => {
+        onChange([...list, { datetime: nowStr(), patient: "", visitId: "", touched: true }]);
+      };
+      const removeItem = (i) => {
+        const next = list.filter((_, idx) => idx !== i);
+        onChange(next.length ? next : [{ datetime: "", patient: "", visitId: "", touched: false }]);
+      };
+
+      const displayList = list.map(item => ({
+        ...item,
+        displayValue: item.touched ? item.datetime : (item.datetime || nowStr()),
+      }));
+
+      const cardStyle = multi || withVisitId;
+
+      return (
+        <div>
+          {displayList.map((item, i) => (
+            <div key={i} style={{marginBottom:10,padding: cardStyle ? 10 : 0, border: cardStyle ? "1px solid #e5e7eb" : "none", borderRadius:8, background: cardStyle ? "#f9fafb" : "transparent"}}>
+              {multi && (
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <div style={{fontSize:11,fontWeight:600,color:"#6b7280"}}>{itemLabel} #{i+1}</div>
+                  <button onClick={() => removeItem(i)} style={{background:"none",border:"none",fontSize:11,color:"#ef4444",cursor:"pointer",fontFamily:"inherit"}}>Remove</button>
+                </div>
+              )}
+              <DateTimeInput value={item.displayValue} onChange={v => updateItem(i, "datetime", v)} />
+              {!item.touched && !multi && <div style={{fontSize:11,color:"#9ca3af",marginTop:3,fontStyle:"italic"}}>Click any field or "Use current time" to set this timestamp.</div>}
+              {withVisitId && (
+                <div style={{marginTop:12,paddingTop:10,borderTop:cardStyle ? "1px solid #e5e7eb" : "none"}}>
+                  <div style={{fontSize:12,color:"#374151",marginBottom:3,fontWeight:500}}>Visit ID{multi ? ` for ${itemLabel.toLowerCase()} #${i+1}` : ""}</div>
+                  <div style={{fontSize:11,color:"#9ca3af",marginBottom:5,fontStyle:"italic"}}>Pull from admin URL after "visitid="</div>
+                  <input type="text" value={item.visitId || ""} onChange={e => updateItem(i, "visitId", e.target.value)}
+                    style={{width:"100%",padding:"8px 10px",border:"1px solid #d1d5db",borderRadius:7,fontSize:13,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
+                </div>
+              )}
+              {multi && (
+                <div style={{marginTop:10}}>
+                  <div style={{fontSize:12,color:"#374151",marginBottom:3,fontWeight:500}}>Patient ID for this {itemLabel.toLowerCase()}</div>
+                  <input type="text" value={item.patient || ""} onChange={e => updateItem(i, "patient", e.target.value)}
+                    style={{width:"100%",padding:"8px 10px",border:"1px solid #d1d5db",borderRadius:7,fontSize:13,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
+                </div>
+              )}
+            </div>
+          ))}
+          <button onClick={addItem} style={{marginTop:4,padding:"6px 12px",border:"1px dashed #d1d5db",borderRadius:7,background:"#fff",color:"#374151",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+            + Add another timestamp
+          </button>
+        </div>
+      );
+    }
+
     function ScreenshotField({ value, onChange }) {
       const fileRef = useRef();
       const handleFile = f => { if(!f)return; const r=new FileReader(); r.onload=e=>onChange({text:`[Screenshot: ${f.name}]`,dataUrl:e.target.result,name:f.name}); r.readAsDataURL(f); };
@@ -800,14 +797,12 @@
             <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#dc2626",marginBottom:8}}>⚠️ Likely the issue</div>
             <div style={{fontSize:14,color:"#111827",lineHeight:1.6,marginBottom:14}}>{step.warning}</div>
             <div style={{fontSize:12,color:"#6b7280",marginBottom:14,lineHeight:1.5}}>Have the advocate or physician test this before proceeding. If they have, change your answer below. Otherwise, provide a reason and continue.</div>
-
             <div style={{marginBottom:12}}>
               <label style={{fontSize:12,fontWeight:500,color:"#374151",display:"block",marginBottom:4}}>Reason for proceeding anyway</label>
               <textarea value={reason} onChange={e=>setReason(e.target.value)} rows={2}
                 placeholder="e.g. Advocate already tested and confirms it doesn't help..."
                 style={{width:"100%",padding:"8px 10px",border:"1px solid #d1d5db",borderRadius:7,fontSize:13,fontFamily:"inherit",boxSizing:"border-box",outline:"none",resize:"vertical"}}/>
             </div>
-
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               <button onClick={onChangeAnswer} style={{flex:"1 1 auto",padding:"9px 14px",border:"none",borderRadius:7,background:"#3b82f6",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                 They tested it — change my answer
@@ -842,9 +837,8 @@
 
       function startCat(c) {
         setCat(c); setAnswers({}); setBranchIdx(0); setTsIdx(0); setTsResults([]); setTsAnswer(""); setEscVals({});
-        if (TREES[c].length > 0) {
-          setScreen("branch");
-        } else {
+        if (TREES[c].length > 0) setScreen("branch");
+        else {
           const epKey = resolveEndpoint(c, {});
           if (epKey && ENDPOINTS[epKey].troubleshoot.length > 0) setScreen("troubleshoot");
           else setScreen("escalate");
@@ -854,13 +848,11 @@
       function pickBranch(key, val) {
         const newA = {...answers, [key]: val};
         setAnswers(newA);
-
         if (key === "twilioFailed" && TWILIO_GUIDANCE_MAP[val]) {
           setGuidanceKey(TWILIO_GUIDANCE_MAP[val]);
           setScreen("guidance");
           return;
         }
-
         const nb = TREES[cat].filter(b => !b.showIf || b.showIf(newA));
         if (branchIdx + 1 < nb.length) setBranchIdx(branchIdx + 1);
         else {
@@ -905,18 +897,11 @@
         else setScreen("escalate");
       }
 
-      function modalChangeAnswer() {
-        setShowWarning(false);
-        setTsAnswer("");
-      }
+      function modalChangeAnswer() { setShowWarning(false); setTsAnswer(""); }
 
       function goBack() {
         if (screen === "done") { setScreen("escalate"); return; }
-        if (screen === "guidance") {
-          setGuidanceKey(null);
-          setScreen("branch");
-          return;
-        }
+        if (screen === "guidance") { setGuidanceKey(null); setScreen("branch"); return; }
         if (screen === "escalate") {
           if (ep?.troubleshoot.length > 0) {
             setTsIdx(ep.troubleshoot.length - 1);
@@ -925,9 +910,7 @@
           } else if (visibleBranches.length > 0) {
             setBranchIdx(visibleBranches.length - 1);
             setScreen("branch");
-          } else {
-            setScreen("category"); setCat(null);
-          }
+          } else { setScreen("category"); setCat(null); }
           return;
         }
         if (screen === "troubleshoot") {
@@ -951,7 +934,6 @@
           const touched = v.filter(item => item.touched && item.datetime);
           if (touched.length === 0) return "";
           const hasVisitIds = touched.some(item => item.visitId);
-          const label = touched.some(item => item.visitId !== undefined) ? "Visit" : "Call";
           if (touched.length === 1) {
             const item = touched[0];
             const extras = [];
@@ -959,6 +941,8 @@
             if (item.patient) extras.push(`Patient: ${item.patient}`);
             return extras.length > 0 ? `${item.datetime}\n${extras.join("\n")}` : item.datetime;
           }
+          // multi: try to infer label from whether any visitId exists in any slot
+          const label = hasVisitIds ? "Visit" : "Call";
           return touched.map((item, i) => {
             const extras = [];
             if (item.patient) extras.push(`Patient: ${item.patient}`);
@@ -1004,7 +988,6 @@
         const text = `Title: ${getTitle()}\n\n${buildTicket()}`;
         const success = () => { setCopied(true); setCopyError(false); setTimeout(() => setCopied(false), 2000); };
         const failure = () => { setCopyError(true); setTimeout(() => setCopyError(false), 4000); };
-
         if (navigator.clipboard && window.isSecureContext) {
           navigator.clipboard.writeText(text).then(success).catch(() => fallbackCopy(text, success, failure));
         } else {
@@ -1020,14 +1003,11 @@
           ta.style.top = "-9999px";
           ta.style.opacity = "0";
           document.body.appendChild(ta);
-          ta.focus();
-          ta.select();
+          ta.focus(); ta.select();
           const ok = document.execCommand("copy");
           document.body.removeChild(ta);
           if (ok) onSuccess(); else onFailure();
-        } catch (e) {
-          onFailure();
-        }
+        } catch (e) { onFailure(); }
       }
 
       function reset() { setScreen("category"); setCat(null); setAnswers({}); setBranchIdx(0); setTsIdx(0); setTsResults([]); setTsAnswer(""); setEscVals({}); setGuidanceKey(null); }
@@ -1094,21 +1074,17 @@
                   <div style={{fontSize:18,fontWeight:600,color:"#78350f",marginBottom:4,lineHeight:1.3}}>{g.title}</div>
                   <div style={{fontSize:13,color:"#92400e",fontStyle:"italic",marginBottom:12}}>{g.severity}</div>
                   <div style={{fontSize:13,color:"#78350f",lineHeight:1.6,marginBottom:14}}>{g.description}</div>
-
                   <div style={{fontSize:12,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",color:"#b45309",marginBottom:8}}>Recommended steps</div>
                   <ol style={{margin:0,paddingLeft:20,fontSize:13,color:"#78350f",lineHeight:1.7}}>
                     {g.steps.map((s,i) => <li key={i} style={{marginBottom:4}}>{s}</li>)}
                   </ol>
-
                   {g.note && (
                     <div style={{marginTop:14,padding:"10px 12px",background:"#fef3c7",borderRadius:7,fontSize:12,color:"#78350f",lineHeight:1.5}}>
                       <strong>Note:</strong> {g.note}
                     </div>
                   )}
                 </div>
-
                 <div style={{fontSize:13,color:"#6b7280",marginBottom:12,lineHeight:1.5}}>If the advocate hasn't completed these steps yet, have them try first. If they've tried and the issue persists, continue to log a ticket.</div>
-
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   <button onClick={continueFromGuidance} style={{padding:"10px 22px",border:"none",borderRadius:8,background:"#3b82f6",color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Continue to ticket →</button>
                   <button onClick={reset} style={{padding:"10px 22px",border:"1px solid #d1d5db",borderRadius:8,background:"#fff",color:"#374151",fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>Cancel — no ticket needed</button>
@@ -1172,7 +1148,7 @@
                   )}
                   {f.type === "datetime" && <DateTimeInput value={escVals[f.key]||""} onChange={v=>setEsc(f.key, v)}/>}
                   {f.type === "datetime_multi" && <MultiDateTimeInput value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)}/>}
-                  {f.type === "datetime_multi_video" && <MultiDateTimeInput value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)} withVisitId={true}/>}
+                  {f.type === "datetime_multi_visit" && <MultiDateTimeInput value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)} withVisitId={true}/>}
                   {f.type === "screenshot" && <ScreenshotField value={escVals[f.key]||null} onChange={v=>setEsc(f.key, v)}/>}
                 </div>
               ))}
