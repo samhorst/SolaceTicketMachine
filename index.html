@@ -660,7 +660,6 @@
       "transcript_missing_entirely": {
         troubleshoot: [
           { id: "allRetries",  q: "Has the advocate exhausted all 3 manual retries via the Retry button?", satisfyOn: "Yes", warning: "Advocate must use all 3 manual retries before escalating. The platform first auto-retries 3× (5 min apart), then exposes 3 manual retries. Hold the ticket until exhausted." },
-          { id: "reportButton",q: "Did the \"Report a Problem\" button appear and was it used?", satisfyOn: "Yes", warning: "The \"Report a Problem\" button appears after all retries are exhausted. Have the advocate use that to flag the issue before manually escalating to Linear." },
         ],
         escalate: [
           { key: "ticket",      label: "Zendesk ticket #", type: "text" },
@@ -675,7 +674,7 @@
           { key: "notes",       label: "Additional notes", type: "textarea" },
         ],
         title: () => "CX RQ — [Transcript | BUG]",
-        summary: () => `Transcript missing entirely. All retries exhausted, Report a Problem used. Escalating for transcript pipeline investigation.`,
+        summary: () => `Transcript missing entirely. All retries exhausted. Escalating for transcript pipeline investigation.`,
       },
       "transcript_not_loading": {
         troubleshoot: [
@@ -1803,5 +1802,4 @@
     root.render(<App />);
   </script>
 </body>
-</html>
 </html>
