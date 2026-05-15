@@ -79,7 +79,7 @@
         severity: "Likely internet speed issue",
         description: "Bandwidth failures indicate the advocate's connection doesn't have enough speed to support VoIP. Minimums are ≥10 Mbps down, ≥5 up, <100ms ping.",
         steps: [
-          <>Have the advocate run a speed test at <a href="https://www.speedtest.net" target="_blank" rel="noopener noreferrer" style={{color:"#1d4ed8",textDecoration:"underline"}}>speedtest.net</a></>,
+          React.createElement(React.Fragment, null, "Have the advocate run a speed test at ", React.createElement("a", {href:"https://www.speedtest.net", target:"_blank", rel:"noopener noreferrer", style:{color:"#1d4ed8",textDecoration:"underline"}}, "speedtest.net")),
           "If below targets: move closer to the router, switch to wired ethernet, or use a faster network",
           "Disable VPN and any bandwidth-heavy apps (streaming, large downloads, cloud sync)",
           "If on cellular, switch to Wi-Fi if available",
