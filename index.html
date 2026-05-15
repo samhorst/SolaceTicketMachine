@@ -520,7 +520,7 @@
           { key: "ticket",    label: "Zendesk ticket #", type: "text" },
           { key: "advocate",  label: "Advocate name", type: "text" },
           { key: "datetime",  label: "Timestamps of attempts", type: "datetime" },
-          { key: "faxId",     label: "Fax ID", type: "text", hint: "Required — Documo can't pull logs without it" },
+          { key: "faxId",     label: "Fax ID", type: "text" },
           { key: "errCode",   label: "Final 4-digit error code", type: "text" },
           { key: "recipient", label: "Recipient fax number", type: "text" },
           { key: "senderFax", label: "Advocate's Solace fax number", type: "text" },
@@ -1096,72 +1096,6 @@
     }
 
     /* ============================================================
-       WARNING MODAL — with focus trapping
-       ============================================================ */
-    function WarningModal({ step, onProceed, onChangeAnswer, onClose }) {
-      const [reason, setReason] = useState("");
-      const dialogRef = useRef();
-      const firstBtnRef = useRef();
-
-      useEffect(() => {
-        if (firstBtnRef.current) firstBtnRef.current.focus();
-        const handleKey = e => { if (e.key === "Escape") onClose(); };
-        document.addEventListener("keydown", handleKey);
-        return () => document.removeEventListener("keydown", handleKey);
-      }, [onClose]);
-
-      return (
-        <div role="dialog" aria-modal="true" aria-labelledby="warning-title" style={{
-          position:"fixed",inset:0,
-          background:"rgba(16, 16, 16, 0.55)",
-          display:"flex",alignItems:"center",justifyContent:"center",
-          zIndex:100,padding:"1rem",
-          backdropFilter:"blur(2px)",
-        }} onClick={onClose}>
-          <div ref={dialogRef} style={{
-            background:"var(--surface-card)",
-            borderRadius:"var(--radius-lg)",
-            maxWidth:480,width:"100%",
-            padding:"1.75rem",
-            boxShadow:"var(--shadow-lg)",
-            border:"1.5px solid var(--border-subtle)",
-          }} onClick={e=>e.stopPropagation()}>
-            <div id="warning-title" style={{fontSize:"var(--fs-xs)",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.06em",color:"var(--danger-strong)",marginBottom:10}}>
-              ⚠️ Likely the issue
-            </div>
-            <div style={{fontSize:"var(--fs-md)",color:"var(--text-primary)",lineHeight:1.6,marginBottom:18,fontWeight:500}}>
-              {step.warning}
-            </div>
-            <div style={{fontSize:"var(--fs-sm)",color:"var(--text-secondary)",marginBottom:18,lineHeight:1.6}}>
-              Have the advocate or physician test this before proceeding. If they have, change your answer below. Otherwise, provide a reason and continue.
-            </div>
-            <div style={{marginBottom:16}}>
-              <label htmlFor="proceed-reason" style={{fontSize:"var(--fs-sm)",fontWeight:700,color:"var(--text-secondary)",display:"block",marginBottom:6}}>
-                Reason for proceeding anyway
-              </label>
-              <textarea
-                id="proceed-reason"
-                value={reason}
-                onChange={e=>setReason(e.target.value)}
-                rows={3}
-                placeholder="e.g. Advocate already tested and confirms it doesn't help..."
-                style={{...baseInput, resize:"vertical"}}
-              />
-            </div>
-            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-              <Button ref={firstBtnRef} variant="primary" onClick={onChangeAnswer} style={{flex:"1 1 auto"}}>
-                They tested it — change my answer
-              </Button>
-              <Button onClick={()=>onProceed(reason)} disabled={!reason.trim()} style={{flex:"1 1 auto"}}>
-                Proceed with reason
-              </Button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    /* ============================================================
        APP ROOT
        ============================================================ */
     function App() {
@@ -1169,10 +1103,8 @@
       const [cat, setCat]             = useState(null);
       const [answers, setAnswers]     = useState({});
       const [branchIdx, setBranchIdx] = useState(0);
-      const [tsIdx, setTsIdx]         = useState(0);
-      const [tsResults, setTsResults] = useState([]);
-      const [tsAnswer, setTsAnswer]   = useState("");
-      const [showWarning, setShowWarning] = useState(false);
+      const [tsState, setTsState]     = useState({}); // { [stepId]: { satisfied: bool, reason: string } }
+      const [tsError, setTsError]     = useState(null); // stepId that failed validation
       const [escVals, setEscVals]     = useState({});
       const [guidanceKey, setGuidanceKey] = useState(null);
       const [copyError, setCopyError] = useState(false);
@@ -1184,7 +1116,7 @@
       const ep = endpointKey ? ENDPOINTS[endpointKey] : null;
 
       function startCat(c) {
-        setCat(c); setAnswers({}); setBranchIdx(0); setTsIdx(0); setTsResults([]); setTsAnswer(""); setEscVals({});
+        setCat(c); setAnswers({}); setBranchIdx(0); setTsState({}); setTsError(null); setEscVals({});
         if (TREES[c].length > 0) setScreen("branch");
         else {
           const epKey = resolveEndpoint(c, {});
@@ -1221,39 +1153,43 @@
         }
       }
 
-      function pickTsAnswer(answer) {
-        const step = ep.troubleshoot[tsIdx];
-        if (answer === step.satisfyOn || step.satisfyOn.includes(answer)) {
-          const newResults = [...tsResults, { q: step.q, answer, reason: null }];
-          setTsResults(newResults);
-          setTsAnswer("");
-          if (tsIdx + 1 < ep.troubleshoot.length) setTsIdx(tsIdx + 1);
-          else setScreen("escalate");
-        } else {
-          setTsAnswer(answer);
-          setShowWarning(true);
+      function toggleStep(stepId) {
+        setTsState(prev => {
+          const cur = prev[stepId] || { satisfied: false, reason: "" };
+          // Toggling to satisfied clears any reason
+          if (!cur.satisfied) return {...prev, [stepId]: { satisfied: true, reason: "" }};
+          return {...prev, [stepId]: { satisfied: false, reason: cur.reason }};
+        });
+        setTsError(null);
+      }
+
+      function setStepReason(stepId, reason) {
+        setTsState(prev => {
+          const cur = prev[stepId] || { satisfied: false, reason: "" };
+          return {...prev, [stepId]: { ...cur, reason }};
+        });
+        if (tsError === stepId && reason.trim()) setTsError(null);
+      }
+
+      function submitTroubleshoot() {
+        if (!ep) return;
+        // Validate: every unchecked step needs a reason
+        for (const step of ep.troubleshoot) {
+          const s = tsState[step.id] || { satisfied: false, reason: "" };
+          if (!s.satisfied && !s.reason.trim()) {
+            setTsError(step.id);
+            return;
+          }
         }
+        setScreen("escalate");
       }
 
-      function modalProceed(reason) {
-        const step = ep.troubleshoot[tsIdx];
-        const newResults = [...tsResults, { q: step.q, answer: tsAnswer, reason }];
-        setTsResults(newResults);
-        setShowWarning(false);
-        setTsAnswer("");
-        if (tsIdx + 1 < ep.troubleshoot.length) setTsIdx(tsIdx + 1);
-        else setScreen("escalate");
-      }
-
-      function modalChangeAnswer() { setShowWarning(false); setTsAnswer(""); }
 
       function goBack() {
         if (screen === "done") { setScreen("escalate"); return; }
         if (screen === "guidance") { setGuidanceKey(null); setScreen("branch"); return; }
         if (screen === "escalate") {
           if (ep?.troubleshoot.length > 0) {
-            setTsIdx(ep.troubleshoot.length - 1);
-            setTsResults(tsResults.slice(0, -1));
             setScreen("troubleshoot");
           } else if (visibleBranches.length > 0) {
             setBranchIdx(visibleBranches.length - 1);
@@ -1262,8 +1198,7 @@
           return;
         }
         if (screen === "troubleshoot") {
-          if (tsIdx > 0) { setTsIdx(tsIdx - 1); setTsResults(tsResults.slice(0, -1)); }
-          else if (visibleBranches.length > 0) { setBranchIdx(visibleBranches.length - 1); setScreen("branch"); }
+          if (visibleBranches.length > 0) { setBranchIdx(visibleBranches.length - 1); setScreen("branch"); }
           else { setScreen("category"); setCat(null); }
           return;
         }
@@ -1304,10 +1239,18 @@
       function buildTicket() {
         if (!ep) return "";
         const escText = Object.fromEntries(ep.escalate.map(f => [f.key, getEscText(f.key)]));
+        const tsResults = (ep.troubleshoot || []).map(step => {
+          const s = tsState[step.id] || { satisfied: false, reason: "" };
+          return {
+            q: step.q,
+            answer: s.satisfied ? "Confirmed ✓" : "Not completed",
+            reason: !s.satisfied && s.reason ? s.reason : null,
+          };
+        });
         const summary = ep.summary({ answers, tsResults }, escText);
         const branchLog = visibleBranches.map(b => `${b.q}\n→ ${answers[b.key] || "—"}`).join("\n\n");
         const tsLog = tsResults.length > 0
-          ? tsResults.map(r => `${r.q}\n→ ${r.answer}${r.reason ? `\n   Reason for proceeding: ${r.reason}` : ""}`).join("\n\n")
+          ? tsResults.map(r => `${r.q}\n→ ${r.answer}${r.reason ? `\n   Reason it couldn't be completed: ${r.reason}` : ""}`).join("\n\n")
           : "(no troubleshooting steps required)";
         const escLog = ep.escalate
           .filter(f => {
@@ -1357,12 +1300,13 @@
         } catch (e) { onFailure(); }
       }
 
-      function reset() { setScreen("category"); setCat(null); setAnswers({}); setBranchIdx(0); setTsIdx(0); setTsResults([]); setTsAnswer(""); setEscVals({}); setGuidanceKey(null); }
+      function reset() { setScreen("category"); setCat(null); setAnswers({}); setBranchIdx(0); setTsState({}); setTsError(null); setEscVals({}); setGuidanceKey(null); }
 
-      const totalSteps = visibleBranches.length + (ep?.troubleshoot.length || 0) + 1;
+      const hasTroubleshoot = (ep?.troubleshoot.length || 0) > 0;
+      const totalSteps = visibleBranches.length + (hasTroubleshoot ? 1 : 0) + 1;
       let currentStep = 0;
       if (screen === "branch") currentStep = branchIdx;
-      else if (screen === "troubleshoot") currentStep = visibleBranches.length + tsIdx;
+      else if (screen === "troubleshoot") currentStep = visibleBranches.length;
       else if (screen === "escalate") currentStep = totalSteps - 1;
       else if (screen === "done") currentStep = totalSteps;
       const progress = screen === "category" ? 2 : screen === "done" ? 100 : Math.round((currentStep / totalSteps) * 93) + 4;
@@ -1436,8 +1380,6 @@
         }}>{children}</div>
       );
 
-      const tsStep = ep?.troubleshoot[tsIdx];
-
       return (
         <div style={{position:"relative",minHeight:"100vh",zIndex:1}}>
 
@@ -1503,14 +1445,10 @@
               ⚠️ Do not enter PHI · Reference patients by ID only
             </div>
 
-            {showWarning && tsStep && (
-              <WarningModal step={tsStep} onProceed={modalProceed} onChangeAnswer={modalChangeAnswer} onClose={modalChangeAnswer} />
-            )}
-
             {/* SCREEN: Category */}
             {screen === "category" && (
               <section aria-labelledby="screen-category">
-                <StepLabel>Step 1 of 4</StepLabel>
+                <StepLabel>Step 1</StepLabel>
                 <h1 id="screen-category" style={{
                   fontSize:"var(--fs-2xl)",
                   fontWeight:900,
@@ -1615,22 +1553,111 @@
               );
             })()}
 
-            {/* SCREEN: Troubleshoot */}
-            {screen === "troubleshoot" && tsStep && (
-              <section aria-live="polite">
+            {/* SCREEN: Troubleshoot — checklist */}
+            {screen === "troubleshoot" && ep && (
+              <section>
                 <BackBtn />
                 <Pill />
                 {ep.userError && <UserErrorBanner note={ep.userErrorNote} />}
-                <StepLabel>Troubleshooting {tsIdx + 1} of {ep.troubleshoot.length}</StepLabel>
-                <Question>{tsStep.q}</Question>
-                <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
-                  <Button variant="secondary" onClick={() => pickTsAnswer("Yes")}>Yes</Button>
-                  <Button onClick={() => pickTsAnswer("No")}>No</Button>
-                  <Button onClick={() => pickTsAnswer("Unknown")}>Unknown</Button>
-                  {tsStep.satisfyOn.includes("All") && <Button variant="secondary" onClick={() => pickTsAnswer("All")}>All</Button>}
-                  {tsStep.satisfyOn.includes("N/A") && <Button onClick={() => pickTsAnswer("N/A")}>N/A</Button>}
-                  {tsStep.q.toLowerCase().includes("all patients") && <Button onClick={() => pickTsAnswer("Just one")}>Just one</Button>}
+                <StepLabel>Pre-flight checklist</StepLabel>
+                <Question>Before logging this ticket, confirm these steps with the advocate or physician.</Question>
+                <Hint>Walk through everything below in one go. Check each item once it's been tested. If a step truly can't be completed, leave it unchecked and add a reason.</Hint>
+
+                <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:24}}>
+                  {ep.troubleshoot.map(step => {
+                    const s = tsState[step.id] || { satisfied: false, reason: "" };
+                    const isError = tsError === step.id;
+                    return (
+                      <div key={step.id} style={{
+                        border: isError
+                          ? "1.5px solid var(--danger-strong)"
+                          : s.satisfied
+                            ? "1.5px solid var(--green-400)"
+                            : "1.5px solid var(--border-subtle)",
+                        borderRadius:"var(--radius-md)",
+                        padding:"14px 16px",
+                        background: s.satisfied ? "var(--green-200)" : "var(--surface-card)",
+                        transition:"background-color 0.15s ease, border-color 0.15s ease",
+                      }}>
+                        <label style={{display:"flex",alignItems:"flex-start",gap:12,cursor:"pointer"}}>
+                          <input
+                            type="checkbox"
+                            checked={s.satisfied}
+                            onChange={() => toggleStep(step.id)}
+                            style={{
+                              width:22,
+                              height:22,
+                              marginTop:2,
+                              cursor:"pointer",
+                              accentColor:"var(--green-700)",
+                              flexShrink:0,
+                            }}
+                            aria-describedby={`step-warn-${step.id}`}
+                          />
+                          <div style={{flex:1}}>
+                            <div style={{
+                              fontSize:"var(--fs-base)",
+                              fontWeight:600,
+                              color:"var(--text-primary)",
+                              lineHeight:1.45,
+                              textDecoration: s.satisfied ? "line-through" : "none",
+                              opacity: s.satisfied ? 0.7 : 1,
+                            }}>{step.q}</div>
+                            {!s.satisfied && step.warning && (
+                              <div id={`step-warn-${step.id}`} style={{
+                                fontSize:"var(--fs-sm)",
+                                color:"var(--text-secondary)",
+                                marginTop:6,
+                                lineHeight:1.5,
+                                fontStyle:"italic",
+                              }}>{step.warning}</div>
+                            )}
+                          </div>
+                        </label>
+                        {!s.satisfied && (
+                          <div style={{marginTop:10,paddingLeft:34}}>
+                            <label htmlFor={`reason-${step.id}`} style={{
+                              fontSize:"var(--fs-sm)",
+                              fontWeight:700,
+                              color: isError ? "var(--danger-strong)" : "var(--text-tertiary)",
+                              display:"block",
+                              marginBottom:4,
+                            }}>
+                              Reason this step couldn't be completed{isError ? " — required" : ""}
+                            </label>
+                            <textarea
+                              id={`reason-${step.id}`}
+                              value={s.reason}
+                              onChange={e => setStepReason(step.id, e.target.value)}
+                              rows={2}
+                              placeholder="e.g. Advocate tested without VPN and still failed"
+                              style={{...baseInput,
+                                resize:"vertical",
+                                fontSize:"var(--fs-sm)",
+                                borderColor: isError ? "var(--danger-strong)" : "var(--border-default)",
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
+
+                {tsError && (
+                  <div role="alert" style={{
+                    fontSize:"var(--fs-sm)",
+                    color:"var(--danger-strong)",
+                    fontWeight:700,
+                    marginBottom:12,
+                  }}>
+                    One unchecked step is missing a reason. Either complete it with the advocate, or note why it couldn't be done.
+                  </div>
+                )}
+
+                <Button variant="primary" onClick={submitTroubleshoot}>
+                  Continue to ticket →
+                </Button>
               </section>
             )}
 
